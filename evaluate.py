@@ -5,6 +5,8 @@ on novelgridworlds environment task (novel_gridworld_v0_env.py)
 using Regular Policy Gradient algorithm (RegularPolicyGradient.py)
 Saves the csv(s) for plotting in results/data/<test_results.csv>
 
+run this to evaluate 
+$ python evaluate.py -E <number_of _episodes_to_test> -M <model_episode_number> -R <Render(True/False)>
 
 For questions contact shivam.goel@tufts.edu
 
@@ -19,6 +21,8 @@ import gym_novel_gridworlds
 
 from RegularPolicyGradient import RegularPolicyGradient
 import matplotlib.pyplot as plt
+import argparse
+
 
 
 def save_results (data, tag):
@@ -33,13 +37,14 @@ def save_results (data, tag):
             writer = csv.writer(f)
             writer.writerow(data)
 
-def evaluate (dqn_agent, env, evaluate = True, demo = False):
+def evaluate (dqn_agent, env, evaluate = True, demo = False, render = False):
     # exploration
     explore = True if evaluate==False else False
     obs = env.get_observation()
     R = 0
     r = 0
     count = 0
+    D = False
         
     #print ("Observation space dims = {}".format(obs.shape))
     for step in range(EPISODE_SIZE):
@@ -52,14 +57,16 @@ def evaluate (dqn_agent, env, evaluate = True, demo = False):
         # print ("Reward = {}".format(r))
         # print ("Done = {}".format(done)) 
 
-        # comment to stop render
-        env.render()
+        if render == True:
+            env.render()
+
         agent.give_reward(reward) #give reward
         R += reward
         #print(count) 
         # agent.compute_reward(r)
 
         if done:
+            D = True
             count = step
             if evaluate:
                 dqn_agent.reset()
@@ -71,10 +78,17 @@ def evaluate (dqn_agent, env, evaluate = True, demo = False):
         count += 1
 
     if evaluate:
-        return[R, count]
+        return[R, count, D]
 
 if __name__ == "__main__":
-    
+    # get all the args
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-E", "--episodes", default=100, help="Number of episodes you need to evaluate the model", type = int)
+    ap.add_argument("-M", "--model", default= 'final', help="Episode number of the model you want to load")
+    ap.add_argument("-R","--render", default = False, help="Want to render or not(1 or 0)")
+    ap.add_argument("-print_output", default="", help="print stuff")
+    args = vars(ap.parse_args())
+
     # agent variables
     actionCnt = 5
     D = 46 #8 beams x 5 items lidar + 6 inventory items
@@ -103,14 +117,15 @@ if __name__ == "__main__":
     # parameters
     EPISODE_SIZE = 150
 
-    no_tests = 25 # number of episodes for evaluations
+    no_tests = int(args['episodes']) # number of episodes for evaluations
 
     # get the agent
     agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
                      LEARNING_RATE,GAMMA,DECAY_RATE,\
                      MAX_EPSILON,random_seed)
     agent.set_explore_epsilon(MAX_EPSILON)
-    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=300000)
+    # add the episode number based on the model we want to load
+    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
 
    # get the environment
     env = gym.make(env_id,\
@@ -118,12 +133,16 @@ if __name__ == "__main__":
                   items_quantity = {'tree': no_trees, 'rock': no_rocks, 'rubber_tree':no_rubber_tree,'crafting_table': crafting_table, 'pogo_stick':0},\
                   initial_inventory = {'wall': 0, 'tree': starting_trees, 'rock': starting_rocks,'rubber_tree': starting_rubber_trees, 'crafting_table': 0, 'pogo_stick':0},\
                   goal_env = type_of_env, is_final = final_status)
-
     # run evaluations for number of episodes
+    ctr = 0
     for i in range(no_tests):
         env.reset()
-        result = evaluate(agent, env, evaluate=True)
-        print("Episode--> {} cum_reward--> {} steps-->> {}".format(i+1,result[0],result[1]))
+        result = evaluate(agent, env, evaluate=True, render=args['render'])
+        print("Episode--> {} cum_reward--> {} steps-->> {} Done = {}".format(i+1,result[0],result[1], result[2]))
         # write the test csv
         data = [result[0], result[1]]
+        # check if the task is successful and count
+        if result[2] == True:
+            ctr+=1
         save_results(data, tag = 'test_results')     
+    print ("Agent FINISHED the TASK {} out of {} trials".format(ctr, no_tests))

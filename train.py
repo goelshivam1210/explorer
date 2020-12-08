@@ -5,6 +5,8 @@ using Regular Policy Gradient algorithm (RegularPolicyGradient.py)
 Saves the models in results/<model_name>
 Saves the csv(s) for plotting in plot/data/<train_results.csv>
 
+run this to train 
+$ python train.py -C <resume_training{True/False}> -M <model_episode_number> -E <episode_number> -R <render{True/False}> -P <print result every "X" episode>
 
 For questions contact shivam.goel@tufts.edu
 
@@ -13,6 +15,7 @@ For questions contact shivam.goel@tufts.edu
 import os
 import csv
 import math
+import argparse
 
 import gym
 import numpy as np
@@ -32,11 +35,22 @@ def save_results (data, tag):
 
 if __name__ == "__main__":
 
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-C", "--continue", default=False, help="Want to continue training or start from scratch", type=bool)
+    ap.add_argument("-M", "--model", default= 'final', help="Episode number of the model you want to load")
+    ap.add_argument("-E", "--episode", default= 0, help="Episode number from to resume(used for saving results)", type=int)
+    ap.add_argument("-R","--render", default = False, help="Want to render or not(False or True)", type = bool)
+    ap.add_argument("-P", "--print_every", default= 100, help="Number of epsiodes you want to print the results", type=int)
+    ap.add_argument("-print_output", default="", help="print stuff")
+    args = vars(ap.parse_args())
+
     # load the learning agent
     agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
                      LEARNING_RATE,GAMMA,DECAY_RATE,\
                      MAX_EPSILON,random_seed)
-    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=150000)
+    if args['continue'] == True:
+        print ("LOADING model ....")
+        agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
     # get the environment                 
     env = gym.make(env_id,\
                   map_width = width, map_height = height,\
@@ -45,8 +59,7 @@ if __name__ == "__main__":
                   goal_env = type_of_env, is_final = final_status)
     
     t_step = 0
-    episode = 200000
-    # episode = 0
+    episode = args['episode']
     t_limit = 150
     reward_sum = 0
     reward_arr = []
@@ -69,8 +82,8 @@ if __name__ == "__main__":
 
         new_obs, reward, done, info = env.step(a)
        
-        # uncomment to render
-        # env.render()
+        if args['render'] == True:
+            env.render()
 
         # give reward
         agent.give_reward(reward)
@@ -80,7 +93,7 @@ if __name__ == "__main__":
         
         if t_step > t_limit or done == True:
             # print every 100th episode results
-            if (episode%100 == 0):
+            if (episode%int(args['print_every']) == 0):
                 print("Episode--> {} Reward --> {} EPS --> {}".format(episode, reward_sum, np.round(agent._explore_eps, decimals = 2)))
 
             reward_arr.append(reward_sum)
@@ -108,7 +121,5 @@ if __name__ == "__main__":
     
             # quit after some number of episodes
             if episode > EPISODES:
-
                 agent.save_model(0,0,1,'final') # Harcoded for now
-
                 break

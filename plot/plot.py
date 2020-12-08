@@ -4,22 +4,29 @@ This code takes in the results file,
 npy or csv and other formats and 
 generates plots as we learn.
 run this while training 
-$ python plot.py <Window_Size>
+
+$ python plot.py -W <window_size> -P <pause_time(s)>
 
 For questions contact shivam.goel@tufts.edu
 
 '''
-
 
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import seaborn as sns
+import argparse
+
 sns.set()
-print (sys.argv[1])
 plt.style.use('seaborn-whitegrid')
-window_size = int(sys.argv[1])
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-W", "--window", default=50, help="Window Size for smoothing in plotting", type=int)
+ap.add_argument("-P", "--pause", default=900, help="pause time (s) for the plot to wait before updating", type=int)
+ap.add_argument("-print_output", default="", help="print stuff")
+args = vars(ap.parse_args())
+
 R = []
 while True:
     R = []
@@ -40,9 +47,9 @@ while True:
     #print (R)
     R_sum = []
     E_avg = []
-    for i in range (len(R) - window_size):
-        a = R[i:i+window_size]
-        e = E[i:i+window_size]
+    for i in range (len(R) - int(args['window'])):
+        a = R[i:i+int(args['window'])]
+        e = E[i:i+int(args['window'])]
         rolling_sum = np.mean(a)
         epsilon_sum = np.mean(e)
         R_sum.append(rolling_sum)
@@ -73,11 +80,11 @@ while True:
     # plt.xlabel("Number of time steps")
     plt.ylabel("Average cumulative reward per episode")
     plt.grid(True)
-    #plt.title("TO-SARSA-λ learning curve for polycraft:pogo_task(incremental)(Window-Size ="+str(window_size)+")")
-    plt.title("Learning performance:default_env:pogostick (WS = "+str(window_size)+")")
+    #plt.title("TO-SARSA-λ learning curve for polycraft:pogo_task(incremental)(Window-Size ="+str(int(args['window']))+")")
+    plt.title("Learning performance:default_env:easy_pogostick (WS = "+str(int(args['window']))+")")
     plt.tight_layout()
     # update every 15 minutes (900*60)
-    plt.pause(900)
+    plt.pause(int(args['pause']))
     plt.clf()
     sns.set()
     #plt.pause()
