@@ -74,7 +74,7 @@ while True:
     plt.ylabel("Average cumulative reward per episode")
     plt.grid(True)
     #plt.title("TO-SARSA-λ learning curve for polycraft:pogo_task(incremental)(Window-Size ="+str(window_size)+")")
-    plt.title("Learning curve:default_env:pogostick (WS ="+str(window_size)+")")
+    plt.title("Learning performance:default_env:pogostick (WS = "+str(window_size)+")")
     plt.tight_layout()
     # update every 15 minutes (900*60)
     plt.pause(900)

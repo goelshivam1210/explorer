@@ -78,7 +78,7 @@ if __name__ == "__main__":
     # agent variables
     actionCnt = 5
     D = 46 #8 beams x 5 items lidar + 6 inventory items
-    NUM_HIDDEN = 10
+    NUM_HIDDEN = 20
     GAMMA = 0.95
     LEARNING_RATE = 1e-3
     DECAY_RATE = 0.99
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     type_of_env = 2
 
     # parameters
-    EPISODE_SIZE = 100
+    EPISODE_SIZE = 150
 
     no_tests = 25 # number of episodes for evaluations
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                      LEARNING_RATE,GAMMA,DECAY_RATE,\
                      MAX_EPSILON,random_seed)
     agent.set_explore_epsilon(MAX_EPSILON)
-    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=100000)
+    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=300000)
 
    # get the environment
     env = gym.make(env_id,\

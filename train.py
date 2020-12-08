@@ -36,6 +36,7 @@ if __name__ == "__main__":
     agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
                      LEARNING_RATE,GAMMA,DECAY_RATE,\
                      MAX_EPSILON,random_seed)
+    agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=150000)
     # get the environment                 
     env = gym.make(env_id,\
                   map_width = width, map_height = height,\
@@ -44,7 +45,8 @@ if __name__ == "__main__":
                   goal_env = type_of_env, is_final = final_status)
     
     t_step = 0
-    episode = 0
+    episode = 200000
+    # episode = 0
     t_limit = 150
     reward_sum = 0
     reward_arr = []
@@ -77,6 +79,7 @@ if __name__ == "__main__":
         t_step += 1
         
         if t_step > t_limit or done == True:
+            # print every 100th episode results
             if (episode%100 == 0):
                 print("Episode--> {} Reward --> {} EPS --> {}".format(episode, reward_sum, np.round(agent._explore_eps, decimals = 2)))
 
@@ -95,17 +98,17 @@ if __name__ == "__main__":
             episode += 1
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
-            # save_results(data, tag = 'train_results')
+            save_results(data, tag = 'train_results')
 
             env.reset()
             reward_sum = 0
             # save only 4 models
-            # if episode% (EPISODES/4) == 0:
-            #     agent.save_model(0,0,1,episode)
+            if episode% (EPISODES/4) == 0:
+                agent.save_model(0,0,1,episode)
     
             # quit after some number of episodes
             if episode > EPISODES:
 
-                # agent.save_model(0,0,1,'final') # Harcoded for now
+                agent.save_model(0,0,1,'final') # Harcoded for now
 
                 break
