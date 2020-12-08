@@ -11,18 +11,18 @@ pip install -r requirements.txt
 
 ### To run training
 ```
-python train.py
+python train.py -C <resume_training{True/False}> -M <model_episode_number> -E <episode_number> -R <render{True/False}> -P <print result every "X" episode>
 ```
 
 ### For live plotting
 ```
 cd plot
-python plot.py
+python plot.py -W <window_size> -P <pause_time(s)>
 ```
 
 ### For Evaluation
 ```
-python evaluate.py
+python evaluate.py -E <number_of _episodes_to_test> -M <model_episode_number> -R <Render(True/False)>
 ```
 
 ### For playing
