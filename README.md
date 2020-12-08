@@ -8,7 +8,7 @@ Use a Conda environment to install the requirements
 ```
 pip install -r requirements.txt
 ```
-
+Note: All the scripts can be run without any specified arguments
 ### To run training
 ```
 python train.py -C <resume_training{True/False}> -M <model_episode_number> -E <episode_number> -R <render{True/False}> -P <print result every "X" episode>
