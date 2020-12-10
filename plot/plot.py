@@ -37,12 +37,13 @@ while True:
         reader = csv.reader(infile)
         #reader = infile.readlines()[1:] # read each line as string and skip first line
         for line in reader:
-            #a = line.split(',')
-            reward = float(line[1])
-            epsilon = float(line[2])
-            R.append(reward)
-            E.append(epsilon)
-            #print(line)
+            if line:
+                #a = line.split(',')
+                reward = float(line[1])
+                epsilon = float(line[2])
+                R.append(reward)
+                E.append(epsilon)
+                #print(line)
 
     #print (R)
     R_sum = []
