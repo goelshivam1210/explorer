@@ -5,7 +5,7 @@
 ## Novelty No.3
 ## gridworld-v3: catastrophe--the recipe is changed and the agent needs to get more logs/stones/rubber
 ## Trees, Rubber_tree, rock, crafting_table
-## recipe: 6logs+2stone+1rubber = 1 pogostick
+## recipe: 5logs+2stone+1rubber = 1 pogostick
 
 
 
