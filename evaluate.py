@@ -56,8 +56,7 @@ def evaluate (dqn_agent, env, evaluate = True, demo = False, render = False):
         # print ("Observation = {}".format(obs2))
         # print ("Reward = {}".format(r))
         # print ("Done = {}".format(done)) 
-
-        if render == True:
+        if render:
             env.render()
 
         agent.give_reward(reward) #give reward

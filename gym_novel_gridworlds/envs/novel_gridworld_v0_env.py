@@ -14,6 +14,7 @@
 
 '''
 import math
+import copy
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -229,6 +230,17 @@ class NovelGridworldV0Env(gym.Env):
         self.agent_facing_str = list(self.direction_id.keys())[list(self.direction_id.values()).index(self.agent_facing_id)]
         '''
 
+    # one-hot vector of the type of block in front of the agent
+    def generate_block_type_vector(self):
+        # reset and create a new dictionary to replace pogostick with air
+        items_dict_2 = copy.deepcopy(self.items_id)
+        items_dict_2['air'] = items_dict_2.pop('pogo_stick') 
+        ret = np.zeros((len(items_dict_2.keys())))# make a new array to return one-hot vector
+        for k,v in items_dict_2.items():
+            if self.block_in_front_str == k:
+                ret[v-1] = 1
+        return ret
+
     def set_items_id(self, items):
 
         items_id = {}
@@ -244,8 +256,12 @@ class NovelGridworldV0Env(gym.Env):
         """
 
         lidar_signals = self.get_lidarSignal()
+        block_type_vector = self.generate_block_type_vector()
         observation = lidar_signals + [self.inventory_items_quantity[item] for item in
-                                       sorted(self.inventory_items_quantity)]
+                                       sorted(self.inventory_items_quantity)] 
+                                       #+\
+                                        #   block_type_vector
+        observation = np.concatenate((observation, block_type_vector))
 
         return np.array(observation)
 

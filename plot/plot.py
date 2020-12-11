@@ -27,6 +27,9 @@ ap.add_argument("-P", "--pause", default=900, help="pause time (s) for the plot 
 ap.add_argument("-print_output", default="", help="print stuff")
 args = vars(ap.parse_args())
 
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
+
 R = []
 while True:
     R = []
@@ -45,15 +48,20 @@ while True:
             #print(line)
 
     #print (R)
-    R_sum = []
-    E_avg = []
-    for i in range (len(R) - int(args['window'])):
-        a = R[i:i+int(args['window'])]
-        e = E[i:i+int(args['window'])]
-        rolling_sum = np.mean(a)
-        epsilon_sum = np.mean(e)
-        R_sum.append(rolling_sum)
-        E_avg.append(epsilon_sum)
+    R = np.array(R)
+    E = np.array(E)
+    R_sum = moving_average(R, args['window'])
+    E_avg = moving_average(E, args['window'])
+
+    # R_sum = []
+    # E_avg = []
+    # for i in range (len(R) - int(args['window'])):
+    #     a = R[i:i+int(args['window'])]
+    #     e = E[i:i+int(args['window'])]
+    #     rolling_sum = np.mean(a)
+    #     epsilon_sum = np.mean(e)
+    #     R_sum.append(rolling_sum)
+    #     E_avg.append(epsilon_sum)
 
     #plot
 

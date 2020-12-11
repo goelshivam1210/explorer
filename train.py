@@ -41,6 +41,8 @@ if __name__ == "__main__":
     ap.add_argument("-E", "--episode", default= 0, help="Episode number from to resume(used for saving results)", type=int)
     ap.add_argument("-R","--render", default = False, help="Want to render or not(False or True)", type = bool)
     ap.add_argument("-P", "--print_every", default= 100, help="Number of epsiodes you want to print the results", type=int)
+    ap.add_argument("-N", "--num_model", default= 4, help="Number of models want to save before final trained model. Used for evaluations", type=int)
+
     ap.add_argument("-print_output", default="", help="print stuff")
     args = vars(ap.parse_args())
 
@@ -81,6 +83,9 @@ if __name__ == "__main__":
         a = agent.process_step(obs,True)
 
         new_obs, reward, done, info = env.step(a)
+        # print ("observation = {} shape = {}".format(new_obs, new_obs.shape))
+        # print ("reward = {}".format(reward))
+        # print ("done = {}".format(done))
        
         if args['render'] == True:
             env.render()
@@ -111,12 +116,12 @@ if __name__ == "__main__":
             episode += 1
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
-            save_results(data, tag = 'train_results')
+            # save_results(data, tag = 'train_results')
 
             env.reset()
             reward_sum = 0
             # save only 4 models
-            if episode% (EPISODES/4) == 0:
+            if episode% (EPISODES/args['num_model']) == 0:
                 agent.save_model(0,0,1,episode)
     
             # quit after some number of episodes
