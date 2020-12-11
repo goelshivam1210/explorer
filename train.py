@@ -116,7 +116,7 @@ if __name__ == "__main__":
             episode += 1
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
-            # save_results(data, tag = 'train_results')
+            save_results(data, tag = 'train_results')
 
             env.reset()
             reward_sum = 0

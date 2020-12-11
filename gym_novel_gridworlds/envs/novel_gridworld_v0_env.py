@@ -259,8 +259,7 @@ class NovelGridworldV0Env(gym.Env):
         block_type_vector = self.generate_block_type_vector()
         observation = lidar_signals + [self.inventory_items_quantity[item] for item in
                                        sorted(self.inventory_items_quantity)] 
-                                       #+\
-                                        #   block_type_vector
+                                       
         observation = np.concatenate((observation, block_type_vector))
 
         return np.array(observation)

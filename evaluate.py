@@ -91,12 +91,12 @@ if __name__ == "__main__":
     # agent variables
     actionCnt = 5
     D = 46 #8 beams x 5 items lidar + 6 inventory items
-    NUM_HIDDEN = 20
-    GAMMA = 0.95
-    LEARNING_RATE = 1e-3
+    # D = 52
+    NUM_HIDDEN = 30
+    GAMMA = 0.99
+    LEARNING_RATE = 1e-4
     DECAY_RATE = 0.99
-    MAX_EPSILON = 0.1
-    random_seed = 1
+    MAX_EPSILON = 0.01
     random_seed = 1
 
     # environment variables
