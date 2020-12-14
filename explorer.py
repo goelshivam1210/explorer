@@ -43,6 +43,7 @@ def get_observation(self):
     return np.array(observation)
 """
 
+
 def generate_expanded_agent(
     old_env, new_env, old_agent, parameter_list, model_file, copy_object_weights=None
 ):
@@ -60,25 +61,18 @@ def generate_expanded_agent(
         new_env.num_beams * len(new_env.items_lidar)
         + len(new_env.inventory_items_quantity)
         + len(new_env.items)
-    )
-    # size is # total lidar beams + # inventory spots + # block_in_front spots
+    )  # size is # total lidar beams + # inventory spots + # block_in_front spots
 
-    # Create new agent with new number of inputs
-    parameter_list["D"] = new_input_size
+    parameter_list["D"] = new_input_size  # Create new agent with new number of inputs
     new_agent = RegularPolicyGradient(**parameter_list)
-
-    # Load model from old agent
-    new_agent.load_model_from_dict(old_agent._model)
+    new_agent.load_model_from_dict(old_agent._model)  # Load model from old agent
 
     # TODO - figure out how to load model from file
     # new_agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
 
-    # Expand network with random weights
-    if copy_object_weights is None:
+    if copy_object_weights is None:  # Expand network with random weights
         new_agent.expand_random_weights(num_new_inputs)
-
-    # Copy weights for existing features
-    else:
+    else:  # Copy weights for existing features
         if len(copy_object_weights) != len(new_items):
             print(
                 "[generate_expanded_agent] Error: length copy_input_weights must match"
@@ -90,29 +84,23 @@ def generate_expanded_agent(
         for object_ind in copy_object_weights:
             input_inds = [
                 object_ind + len(old_env.items_lidar) * beam_i
-                in range(old_env.num_beams)
+                for beam_i in range(old_env.num_beams)
             ]
-
             input_inds += [total_num_beams + object_ind]
             input_inds += [
                 total_num_beams + len(old_env.inventory_items_quantity) + object_ind
             ]
-
             new_agent.expand_copy_weights(input_inds)
 
     return new_agent
 
 
-def get_optimal_actions(self, old_env, old_agent, similar_object_inds):
+def get_optimal_actions(self, old_env, old_agent, similar_object_inds, metric="counts"):
     # similar_object_inds is a list of indices of objects of interest (within items array)
-
-    # for each object_ind, store list of actions taken in front of that object, where
-    # each entry is the action, number of times it was taken, and list of rewards
-    # received
-    actions_taken = [
-        [[a_ind, 0, []] for a_ind in range(len(old_env.action_str))]
-        for o_ind in range(len(similar_object_inds))
-    ]
+    # store list of actions taken in front of objects of interest, where
+    # each entry is the action, number of times it was taken, and list of discounted
+    # rewards received
+    actions_taken = [[a_ind, 0, []] for a_ind in range(len(old_env.action_str))]
 
     total_num_beams = len(old_env.items_lidar) * old_env.num_beams
     length_inventory = len(old_env.inventory_items_quantity)
@@ -124,7 +112,7 @@ def get_optimal_actions(self, old_env, old_agent, similar_object_inds):
         # 0 - observations, 1 - actions, 2 - discounted rewards
         for t in range(episode_SAR[0].shape[0]):
             observation = episode_SAR[0][t]
-            block_in_front_v = observation[total_num_beams + length_inventory:]
+            block_in_front_v = observation[total_num_beams + length_inventory :]
             # check if in front of some block
             id_block_in_front = np.where(block_in_front_v == 1)
             if len(id_block_in_front[0]):
@@ -136,10 +124,19 @@ def get_optimal_actions(self, old_env, old_agent, similar_object_inds):
                     reward = episode_SAR[2][t, 0]
 
                     # increase action count and append reward
-                    actions_taken[id_bif][action][1] += 1
-                    actions_taken[id_bif][action][2].append(reward)
+                    actions_taken[action][1] += 1
+                    actions_taken[action][2].append(reward)
 
-    # TODO - rank optimal actions for each object based on times taken
-    pass
-    # TODO - rank optimal actions for each object based on sum of discounted rewards
-    pass
+    # rank optimal actions for each object based on times taken
+    if metric == "counts":
+        actions_taken_s = sorted(actions_taken, key=lambda x: x[1], reverse=True)
+    # rank optimal actions for each object based on sum of discounted rewards
+    elif metric == "reward":
+        actions_taken_s = sorted(actions_taken, key=lambda x: sum(x[2]), reverse=True)
+    else:
+        print(
+            "[get_optimal_actions] Error: only metrics 'counts' and 'reward' available"
+        )
+
+    optimal_actions = map(lambda x: x[0], actions_taken_s)
+    return optimal_actions
