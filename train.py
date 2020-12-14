@@ -47,9 +47,23 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     # load the learning agent
-    agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
-                     LEARNING_RATE,GAMMA,DECAY_RATE,\
-                     MAX_EPSILON,random_seed)
+    parameter_list = {
+        "num_actions": actionCnt, 
+        "input_size": D, 
+        "hidden_layer_size": NUM_HIDDEN,
+        "learning_rate": LEARNING_RATE,
+        "gamma": GAMMA,
+        "decay_rate": DECAY_RATE,
+        "greedy_e_epsilon": MAX_EPSILON,
+        "random_seed": random_seed
+    }
+
+    agent = RegularPolicyGradient(**parameter_list)
+
+    # agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
+    #                  LEARNING_RATE,GAMMA,DECAY_RATE,\
+    #                  MAX_EPSILON,random_seed)
+
     if args['continue'] == True:
         print ("LOADING model ....")
         agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
@@ -104,9 +118,9 @@ if __name__ == "__main__":
             reward_arr.append(reward_sum)
             avg_reward.append(np.mean(reward_arr[-40:]))
     
-            done = True
+            # done = True # commenting out because finish_episode now needs actual done
             t_step = 0
-            agent.finish_episode()
+            agent.finish_episode(done)
         
             # update after every 10 episodes
             if episode % 10 == 0:

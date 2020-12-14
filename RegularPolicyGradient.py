@@ -23,7 +23,8 @@ be = "cpu"
 
 class RegularPolicyGradient(object):
 	# constructor
-	def __init__(self, num_actions, input_size, hidden_layer_size, learning_rate,gamma,decay_rate,greedy_e_epsilon,random_seed):
+	def __init__(self, num_actions, input_size, hidden_layer_size, learning_rate,
+				 gamma,decay_rate,greedy_e_epsilon,random_seed):
 		# store hyper-params
 		self._A = num_actions
 		self._D = input_size
@@ -46,6 +47,10 @@ class RegularPolicyGradient(object):
 		self.env_id = 'NovelGridworld-v0'
 		os.makedirs(self.log_dir, exist_ok = True)
 
+		# successful trajectories
+		self._as = [] # list of actions taken this episode
+		self.succ_trajectories = []
+
 	def init_model(self,random_seed):
 		# create model
 		#with cp.cuda.Device(0):
@@ -62,7 +67,6 @@ class RegularPolicyGradient(object):
 		# time.sleep(5)		
 		self._grad_buffer = { k : np.zeros_like(v) for k,v in self._model.items() } # update buffers that add up gradients over a batch
 		self._rmsprop_cache = { k : np.zeros_like(v) for k,v in self._model.items() } # rmsprop memory
-
 	
 	# softmax function
 	def softmax(self,x):
@@ -70,7 +74,6 @@ class RegularPolicyGradient(object):
 		probs /= np.sum(probs, axis=1, keepdims=True)
 		return probs
 		
-	  
 	def discount_rewards(self,r):
 		""" take 1D float array of rewards and compute discounted reward """
 		discounted_r = np.zeros_like(r)
@@ -78,7 +81,7 @@ class RegularPolicyGradient(object):
 		for t in reversed(range(0, r.size)):
 			running_add = running_add * self._gamma + r[t]
 			discounted_r[t] = float(running_add)
-    
+
 		return discounted_r
 	
 	# feed input to network and get result
@@ -112,7 +115,6 @@ class RegularPolicyGradient(object):
   
 		return p, h # return probability of taking actions, and hidden state
 		
-	
 	def policy_backward(self,eph, epdlogp):
 		""" backward pass. (eph is array of intermediate hidden states) """
 		dW2 = eph.T.dot(epdlogp)  
@@ -126,8 +128,7 @@ class RegularPolicyGradient(object):
 		  self._epx_gpu = cuda.to_gpu(self._epx.T, device=0)
 		  self._dW1 = cuda.to_cpu(self._epx_gpu.dot(self._dh_gpu) )
 		else:
-		  self._dW1 = self._epx.T.dot(dh) 
-    
+		  self._dW1 = self._epx.T.dot(dh)
 
 		#print((time.time()-t0)*1000, ' ms, @final bprop')
 
@@ -179,29 +180,29 @@ class RegularPolicyGradient(object):
 		
 		t  = time.time()
 
+		self._as.append(a)
+
 		return a
-		
+
 	# after process_step, this function needs to be called to set the reward
 	def give_reward(self,reward):
 		
 		# store the reward in the list of rewards
 		self._drs.append(reward)
-		
+
 	# reset to be used when evaluating
 	def reset(self):
 		self._xs,self._hs,self._dlogps,self._drs = [],[],[],[] # reset 
 		self._grad_buffer = { k : np.zeros_like(v) for k,v in self._model.items() } # update buffers that add up gradients over a batch
 		self._rmsprop_cache = { k : np.zeros_like(v) for k,v in self._model.items() } # rmsprop memory
-
 		
 	# this function should be called when an episode (i.e., a game) has finished
-	def finish_episode(self):
+	def finish_episode(self, episode_done):
 		# stack together all inputs, hidden states, action gradients, and rewards for this episode
 		
 		# this needs to be stored to be used by policy_backward
 		# self._xs is a list of vectors of size input dim and the number of vectors is equal to the number of time steps in the episode
 		self._epx = np.vstack(self._xs)
-		
 		
 		#for i in range(0,len(self._hs)):
 		#	print(self._hs[i])
@@ -221,13 +222,18 @@ class RegularPolicyGradient(object):
 		#	print(self._drs[i])
 		epr = np.vstack(self._drs)
 		
-		self._xs,self._hs,self._dlogps,self._drs = [],[],[],[] # reset array memory
-
 		# compute the discounted reward backwards through time
 		discounted_epr = (self.discount_rewards(epr))
+
+		if episode_done: # if episode ended due to reaching goal
+			self.succ_trajectories.append((np.vstack(self._xs), self._as, 
+										   discounted_epr))
+
+
+		self._xs, self._hs, self._as, self._dlogps, self._drs = [],[],[],[],[] # reset array memory
+
 		#for i in range(0,len(discounted_epr)):
 		#	print(str(discounted_epr[i]) + "\t"+str(epr[i]))
-		
 		
 		# #print(discounted_epr)
 		# discounted_epr_mean = np.mean(discounted_epr)
@@ -237,7 +243,6 @@ class RegularPolicyGradient(object):
 		
 		# #discounted_epr -= np.mean(discounted_epr)
 		# discounted_epr = np.subtract(discounted_epr,discounted_epr_mean)
-		
 		
 		# discounted_epr /= np.std(discounted_epr)+0.01
 		
@@ -249,6 +254,26 @@ class RegularPolicyGradient(object):
 		
 		for k in self._model: self._grad_buffer[k] += grad[k] # accumulate grad over batch
 
+
+	# upon addition of new items, called to expand network with given number of new
+	# input nodes, and connections to hidden layer initialized with random weights
+	def expand_random_weights(self, num_new_inputs=None):
+		# determine number of nodes to add
+		if num_new_inputs is None:
+			num_new_inputs =  self._D - int(self._model['W1'].shape[0])
+		elif self._D != int(self._model['W1'].shape[0]) + num_new_inputs:
+			print("[expand_random_weights] Warning: num_new_inputs chosen such that"
+				  "model input layer size will not equal self._D after expansion")
+
+		to_append = np.random.randn(num_new_inputs, self._H)/np.sqrt(num_new_inputs)
+		self._model['W1'] = np.vstack((self._model['W1'], to_append))
+
+
+	def expand_copy_weights(self, copy_object_indices):
+		# TODO - consider adding some randomization to the weights
+		for ind in copy_object_indices:
+			self._model['W1'] = np.vstack((self._model['W1'], self._model['W1'][ind]))
+
 	# called to update model parameters, generally every N episodes/games for some N
 	def update_parameters(self):
 		for k,v in self._model.items():
@@ -256,6 +281,7 @@ class RegularPolicyGradient(object):
 			self._rmsprop_cache[k] = self._decay_rate * self._rmsprop_cache[k] + (1 - self._decay_rate) * g**2
 			self._model[k] -= self._learning_rate * g / (np.sqrt(self._rmsprop_cache[k]) + 1e-5)
 			self._grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
+
 ## TODO: adapt to old style
 	def save_model(self, curriculum_no, beam_no, env_no, ep_number):
 		if ep_number =='final':
@@ -265,6 +291,7 @@ class RegularPolicyGradient(object):
 		path_to_save = self.log_dir + os.sep + self.env_id + experiment_file_name + '.npz'
 		np.savez(path_to_save, layer1 = self._model['W1'], layer2 = self._model['W2'])
 		print("saved to: ", path_to_save)
+
 ## TODO: adapt to old style
 	def load_model(self, curriculum_no, beam_no, env_no, ep_number): 
 
@@ -275,3 +302,7 @@ class RegularPolicyGradient(object):
 		self._model['W2'] = data['layer2']
 		print ("loaded model from {}".format(path_to_load))
 
+	def load_model_from_dict(self, model_dict):
+		self._model['W1'] = model_dict['W1']
+		self._model['W2'] = model_dict['W2']
+		print ("loaded model from model dictionary")
