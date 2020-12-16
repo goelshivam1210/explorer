@@ -33,7 +33,7 @@ class NovelGridworldV2Env(gym.Env):
         Navigation if goal_env = 0
         Breaking if goal_env = 1
         Crafting if goal_env = 2
-    State: lidar sensor (8 beams) + inventory_items_quantity
+    State: lidar sensor (8 beams) + inventory_items_quantity + block_in_front
     Action: {0: 'Forward', 1: 'Left', 2: 'Right', 3: 'Break', 4: 'Crafting'}
 
     """

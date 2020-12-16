@@ -4,10 +4,8 @@
 ----------------------------------------
 ## Novelty No.3
 ## gridworld-v3: catastrophe--the recipe is changed and the agent needs to get more logs/stones/rubber
-## Trees, Rubber_tree, rock, crafting_table
+## Trees, Rubber_tree, rock, crafting_table, hard_crafting_table
 ## recipe: 5logs+2stone+1rubber = 1 pogostick
-
-
 
 ### Author: Shivam Goel
 ### Email: shivam.goel@tufts.edu
@@ -33,9 +31,8 @@ class NovelGridworldV3Env(gym.Env):
         Navigation if goal_env = 0
         Breaking if goal_env = 1
         Crafting if goal_env = 2
-    State: lidar sensor (8 beams) + inventory_items_quantity
+    State: lidar sensor (8 beams) + inventory_items_quantity + block_in_front
     Action: {0: 'Forward', 1: 'Left', 2: 'Right', 3: 'Break', 4: 'Crafting'}
-
     """
 
     def __init__(self, map_width=None, map_height=None, items_id=None, items_quantity=None, initial_inventory = None, goal_env = None, is_final = False):
@@ -54,10 +51,10 @@ class NovelGridworldV3Env(gym.Env):
         self.block_in_front_id = 0  # air
         self.block_in_front_location = (0, 0)  # row, column
         ### 这个要改
-        self.items = ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick']
+        self.items = ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick', 'hard_crafting_table']
         self.items_id = self.set_items_id(self.items)  # {'crafting_table': 1, 'pogo_stick': 2, ...}  # air's ID is 0
         # items_quantity when the episode starts, do not include wall, quantity must be more than 0
-        self.items_quantity = {'tree': 6, 'rock': 2, 'rubber_tree' : 1, 'crafting_table': 1, 'pogo_stick': 0}
+        self.items_quantity = {'tree': 6, 'rock': 2, 'rubber_tree' : 1, 'crafting_table': 1, 'pogo_stick': 0, 'hard_crafting_table': 1}
         self.inventory_items_quantity = {item: 0 for item in self.items}
         self.initial_inventory = {item: 0 for item in self.items} # all items to zero
         self.available_locations = []  # locations that do not have item placed
@@ -76,7 +73,7 @@ class NovelGridworldV3Env(gym.Env):
         self.max_beam_range = 40
         ### 这里应该已经加好了？？
         ### wall是边界，不是obj
-        self.items_lidar = ['wall', 'crafting_table', 'tree', 'rock', 'rubber_tree']
+        self.items_lidar = ['wall', 'crafting_table', 'tree', 'rock', 'rubber_tree', 'hard_crafting_table']
         self.items_id_lidar = self.set_items_id(self.items_lidar)
         self.low = np.array([0] * (len(self.items_lidar) * self.num_beams) + [0] * len(self.inventory_items_quantity))
         self.high = np.array([self.max_beam_range] * (len(self.items_lidar) * self.num_beams) + [6] * len(
@@ -309,8 +306,10 @@ class NovelGridworldV3Env(gym.Env):
 
         elif action == 4: # craft
             self.update_block_in_front()
-            if self.block_in_front_str == 'crafting_table':
-                if self.inventory_items_quantity['tree'] >= 5 and self.inventory_items_quantity['rock'] >= 2 and self.inventory_items_quantity['rubber_tree'] >= 1 : # recipe: 3logs+2stone+1rubber = 1 pogostick
+            # Catastrophic novelty - 'crafting_table' no longer actionable,
+            # 'hard_crafting_table' has harder recipe
+            if self.block_in_front_str == 'hard_crafting_table':
+                if self.inventory_items_quantity['tree'] >= 5 and self.inventory_items_quantity['rock'] >= 2 and self.inventory_items_quantity['rubber_tree'] >= 1 : # recipe: 5logs+2stone+1rubber = 1 pogostick
                     self.inventory_items_quantity['pogo_stick'] += 1
                     done = True
                     reward = self.reward_done
