@@ -58,6 +58,18 @@ if __name__ == "__main__":
         "random_seed": random_seed
     }
 
+    # NOTE - THIS IS THE PARAMETER LIST FOR V1Env, V2Env, & v3Env
+    # parameter_list = {
+    #     "num_actions": actionCnt, 
+    #     "input_size": 62, 
+    #     "hidden_layer_size": NUM_HIDDEN,
+    #     "learning_rate": LEARNING_RATE,
+    #     "gamma": GAMMA,
+    #     "decay_rate": DECAY_RATE,
+    #     "greedy_e_epsilon": MAX_EPSILON,
+    #     "random_seed": random_seed
+    # }
+
     agent = RegularPolicyGradient(**parameter_list)
 
     # agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
@@ -67,7 +79,13 @@ if __name__ == "__main__":
     if args['continue'] == True:
         print ("LOADING model ....")
         agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
-    # get the environment                 
+    
+    # NOTE - this is for testing other environments
+    # env_id = 'NovelGridworld-v3'
+    # env = gym.make(env_id, map_width = width, map_height = height, 
+                #    goal_env = type_of_env, is_final = final_status)
+
+    # get the environment
     env = gym.make(env_id,\
                   map_width = width, map_height = height,\
                   items_quantity = {'tree': no_trees, 'rock': no_rocks, 'rubber_tree':no_rubber_tree,'crafting_table': crafting_table, 'pogo_stick':0},

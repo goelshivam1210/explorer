@@ -140,3 +140,82 @@ def get_optimal_actions(self, old_env, old_agent, similar_object_inds, metric="c
 
     optimal_actions = map(lambda x: x[0], actions_taken_s)
     return optimal_actions
+
+
+# lists: items & items_lidar
+# dict: items_id is a dict that's being used as if sorted, accessing keys and valyes
+# dict: items_id_lidar has no functions depending on its ordering
+# dict: inventory_items_quantity is being used sorted
+
+# lidar is dependent on ordered items in self.items_lidar
+# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table']
+# inventory_items_quantity is dependent on ordered items in self.items
+# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick']
+# block_type_vector is dependent on ordered items in self.items (replace 'pogo_stick' with 'air')
+# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'air']
+
+# TODO - print out lengths of lidarSignals, inventory_items, block_in_front vector
+# TODO - test after making changes
+
+
+# TODO - need to prevent setting initial_inventory
+# TODO - or give warning about order of keys
+
+# NOTE - what should the exact details of the new tree novelty be? should we be
+# adding the item such that it can be detected as the block in front and with LIDAR
+# but in the inventory it's the same tree? That makes it harder to make explorer
+# functions that generalize. Even with wall and fence it was assumed that there
+# would be slots for that in the inventory but those slots would never be taken up.
+# Maybe instead, oak_tree should be a separate item, but the number of tree + oak_tree
+# together should be at least 3 to craft the pogo_stick
+# TODO - change how Env2 works
+
+# NOTE - we give reward for the first two trees broken
+
+"""
+self.items = ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick']
+self.items_id = self.set_items_id(self.items)
+# items_quantity when the episode starts, do not include wall, quantity must be more than 0
+self.items_quantity = {'tree': 6, 'rock': 2, 'rubber_tree' : 1, 'crafting_table': 1, 'pogo_stick': 0}
+self.inventory_items_quantity = {item: 0 for item in self.items}
+self.items_lidar = ['wall', 'crafting_table', 'tree', 'rock', 'rubber_tree']
+self.items_id_lidar = self.set_items_id(self.items_lidar)
+"""
+
+"""
+# If bean hit an object or wall
+                if obj_id_rc != 0:
+                    item = list(self.items_id.keys())[list(self.items_id.values()).index(obj_id_rc)]
+                    if item in self.items_id_lidar:
+                        obj_id_rc = self.items_id_lidar[item]
+                        beam_signal[obj_id_rc - 1] = beam_range
+"""
+
+"""
+observation = lidar_signals + [self.inventory_items_quantity[item] for item in
+                                       sorted(self.inventory_items_quantity)]
+"""
+
+"""
+# one-hot vector of the type of block in front of the agent
+def generate_block_type_vector(self):
+    # reset and create a new dictionary to replace pogostick with air
+    items_dict_2 = copy.deepcopy(self.items_id)
+    items_dict_2['air'] = items_dict_2.pop('pogo_stick') 
+    ret = np.zeros((len(items_dict_2.keys())))# make a new array to return one-hot vector
+    for k,v in items_dict_2.items():
+        if self.block_in_front_str == k:
+            ret[v-1] = 1
+    return ret
+"""
+
+"""
+def set_items_id(self, items):
+    items_id = {}
+    for item in sorted(items):
+        items_id[item] = len(items_id) + 1
+
+    return items_id
+"""
+
+# NOTE - use OrderedDict instead

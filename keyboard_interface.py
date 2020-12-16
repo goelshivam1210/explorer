@@ -72,6 +72,13 @@ env_id = 'NovelGridworld-v0'
 env = gym.make(env_id, map_width = width, map_height = height, items_quantity = {'tree': no_trees, 'rock': no_rocks, 'rubber_tree':no_rubber_tree,'crafting_table': crafting_table, 'pogo_stick':0},
     initial_inventory = {'wall': 0, 'tree': starting_trees, 'rock': starting_rocks,'rubber_tree': starting_rubber_trees, 'crafting_table': 0, 'pogo_stick':0}, goal_env = type_of_env, is_final = final_status)
 env = gym.make(env_id)
+# TODO - why do we reset the env with no parameters after making it the first time?
+
+# NOTE - Testing other environments
+# env_id = 'NovelGridworld-v3'
+# env = gym.make(env_id, map_width = width, map_height = height, 
+#                 goal_env = type_of_env, is_final = final_status)
+
 # wrappers
 # env = SaveTrajectories(env, save_path="saved_trajectories")
 
