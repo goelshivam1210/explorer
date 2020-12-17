@@ -19,7 +19,7 @@ MAX_EPSILON = 0.1
 MIN_EPSILON = 0.05
 EXPLORATION_STOP = 100000
 random_seed = 1
-EPISODES = 2000000
+EPISODES = 300000
 LAMBDA = -math.log(0.01) / EXPLORATION_STOP # speed of decay
 
 action_space = ['W','A','D','U','C']

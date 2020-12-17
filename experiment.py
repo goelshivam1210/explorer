@@ -27,10 +27,10 @@ from explorer import generate_adaptive_agent
 from params_baseline import *
 import matplotlib.pyplot as plt
 
-def save_results (data, tag):
+def save_results (data, tag, tag2, tag3):
     os.makedirs("plot" + os.sep + "data", exist_ok=True)
     if tag == 'train_results':
-        db_file_name = "plot/data/train_results.csv"
+        db_file_name = "plot/data/train_results_" + str(tag2)+ str(tag3)+".csv"
         with open(db_file_name, 'a') as f: # append to the file created
             writer = csv.writer(f)
             writer.writerow(data)
@@ -141,19 +141,25 @@ if __name__ == "__main__":
             episode += 1
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
-            save_results(data, tag = 'train_results')
+            save_results(data, tag = 'train_results', tag2 = args['gridworld'], tag3 = args['sim_weights'])
 
             env.reset()
             reward_sum = 0
             # save only 4 models
             if episode% (EPISODES/args['num_model']) == 0:
-                agent.save_model(0,0,1,episode)
+                if args['sim_weights'] == True:
+                    agent.save_model(0,0,args['gridworld']+20000,episode)
+                else:
+                    agent.save_model(0,0,args['gridworld']+20,episode)
     
             # change to a new_env after 700 trials (episodes)
             # TODO - turn into an argument (or change back to 700)
             if episode == args['trials_novelty']:
                 ######## change the file name here
-                agent.save_model(0,0,1,'mid') # Harcoded for now
+                if args['sim_weights'] == True:
+                    agent.save_model(0,0,args['gridworld']+20000,'mid')
+                else:
+                    agent.save_model(0,0,args['gridworld']+20,'mid') # Harcoded for now
 
                 if args['gridworld']==1:
                     newenv = gym.make(env_id_1, map_width=width, map_height=height, goal_env=type_of_env, is_final=final_status)
@@ -174,7 +180,10 @@ if __name__ == "__main__":
                 agent=new_agent
                 env.reset()
             if episode > EPISODES:
-                agent.save_model(0,0,1,'final')
+                if args['sim_weights'] == True:
+                    agent.save_model(0,0,args['gridworld']+20000,episode)
+                else:
+                    agent.save_model(0,0,args['gridworld']+20,'final')
                 break
                 
                 
