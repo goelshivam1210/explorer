@@ -26,6 +26,7 @@ action_space = ['W','A','D','U','C']
 
 # environment variables
 env_id = 'NovelGridworld-v0'
+env_id_0 = 'NovelGridworld-v0'
 width = 12
 height = 12
 no_trees = 6
@@ -36,5 +37,19 @@ starting_trees = 0
 starting_rocks = 0
 starting_rubber_trees = 0
 type_of_env = 2
+
+# env1 variables
+env_id_1 = 'NovelGridworld-v1'
+no_fence = 3
+starting_fence = 0
+
+# env2 variables
+env_id_2 = 'NovelGridworld-v2'
+no_oak_tree = 1
+starting_oak_tree = 0
+
+# env3 variables
+env_id_3 = 'NovelGridworld-v3'
+hard_crafting_table=1
 
 final_status = True # If True, reward shaping present in the task.
