@@ -17,79 +17,109 @@ $ python explorer.py # need to add stuff
 For questions contact
 shivam.goel@tufts.edu
 michael.kotliK@tufts.edu
-# Michael add email here
 
 """
 
 from RegularPolicyGradient import RegularPolicyGradient
 import numpy as np
 
-# NOTE - explanation of the layout of the features in the input vector
-# self.low = np.array([0] * (len(self.items_lidar) * self.num_beams) + [0] * len(self.inventory_items_quantity))
-# [0] * (5 * 8) + [0] * ()
-# num_inputs <- initially set to 46 + 6 (for 5 objects)
-# Corresponds to 8*5 (Lidar) + 5+1 inventory items (for pogo_stick) + 6 block_in_front (for air)
-# within lidar_signals vector, grouped by angles
-# So if there are 5 items, then first 5 indices correspond to beams for the 5 objects
-# at angle 0, then the next 5 indices correspond to the next angle, and so on
+import spacy
+import en_core_web_lg
 
-"""
-def get_observation(self):
-    lidar_signals = self.get_lidarSignal()
-    block_type_vector = self.generate_block_type_vector()
-    observation = lidar_signals + [self.inventory_items_quantity[item] for item in
-                                    sorted(self.inventory_items_quantity)]   
-    observation = np.concatenate((observation, block_type_vector))
-    return np.array(observation)
-"""
+# def get_input_size(env):
+#     # size is # total lidar beams + # inventory spots + # block_in_front spots
+#     return env.num_beams * len(env.items_lidar) + \
+#            len(env.inventory_items_quantity) + \
+#            len(env.items)
 
+def get_most_similar_item(item, old_items):
+    # given name of new item, and list of names of old items, returns name of the most
+    # similar old item
+    nlp = en_core_web_lg.load()
+    item_token = nlp(item.lower().replace('_', ' '))
+    similarities = []
+    for old_item in old_items:
+        similarities.append(
+            item_token.similarity(nlp(old_item.lower().replace('_', ' ')))
+            )
 
-def generate_expanded_agent(
-    old_env, new_env, old_agent, parameter_list, model_file, copy_object_weights=None
-):
-    # NOTE - currently not using model_file, loading model directly from old agent
-    # parameter_list should contain values for all the keys used to initialize agent
-    # copy_object_weights should be the indices in the sorted arrays of the objects
-    # whose connection weights should be copied
+    return old_items[similarities.index(max(similarities))]
 
+def generate_adaptive_agent(old_env, new_env, old_agent, parameter_list,
+                            copy_similar_weights=False):
+    """generate_adaptive_agent produces a new agent (RegularPolicyGradient object),
+        given an old environment (gym_novel_gridworld), a new environment, an old agent,
+        a list of parameters to pass to the new RegularPolicyGradient agent, along with
+        variables specifying the kind of weights to use for expanding the new agent's
+        neural network and exploration mechanics.
+
+        Meant to be called after the old agent is trained on a the old environment for
+        some successful episodes, generating succesful trajectories that will be copied
+        to the new agent and may be used for clever exploration. It is assumed that
+        the environment will contain a new object. Note, it is required that items
+        and items_lidar lists in old_env and new_env are identical in order, with the
+        exception being that the new item is listed last in new_env.items and
+        new_env.items_lidar.
+
+        It is thus assumed that the feature vector (observation) returned by new_env
+        will have an extra 10 elements corresponding to the new object. The policy
+        gradient network in the new agent will be expanded, adding new weights between
+        the inputs and the hidden layer
+
+        If copy_similar_weights = False or 0, the weights will be assigned randomly
+        using Xavier initialization.
+
+        If copy_similar weights = True or 1, semantic similarity will be used to find
+        the object that existed in the old environment with the name most similar to
+        the novel object. The weights on the connecetions between the input nodes
+        corresponding to that object and the hidden layer will then be used for the
+        new object.
+
+    Args:
+        old_env ([type]): [description]
+        new_env ([type]): [description]
+        old_agent ([type]): [description]
+        parameter_list ([type]): [description]
+        model_file ([type]): [description]
+        copy_similar_weights (bool, optional): [description]. Defaults to False.
+    """
+    # --- Get num new objects and check correct feature vector size in new_env --- #
     new_items = list(set(new_env.items) - set(old_env.items))  # names of new items
-    # new_input_size = len(new_env.high) # use once observation_space fixed
-    num_new_inputs = len(new_items) * (
-        10
-    )  # 8 for lidar, 1 for inventory, 1 for block_in_front
-    new_input_size = (
-        new_env.num_beams * len(new_env.items_lidar)
-        + len(new_env.inventory_items_quantity)
-        + len(new_env.items)
-    )  # size is # total lidar beams + # inventory spots + # block_in_front spots
+    old_input_size = len(old_env.high)
+    new_input_size = len(new_env.high)
 
-    parameter_list["D"] = new_input_size  # Create new agent with new number of inputs
+    # 10 features because: 8 for lidar, 1 for inventory, 1 for block_in_front
+    num_new_inputs = len(new_items) * (10)
+
+    if new_input_size != old_input_size + num_new_inputs:
+        print(f"[generate_adaptive_agent] Error: expect 10 new features for each new "
+              "object added to the environment, but input is of size {old_input_size} "
+              "for old_env and {new_input_size} for new_env")
+        return None
+    
+    # --- Create new agent object --- #
+    parameter_list["input_size"] = new_input_size
     new_agent = RegularPolicyGradient(**parameter_list)
     new_agent.load_model_from_dict(old_agent._model)  # Load model from old agent
 
-    # TODO - figure out how to load model from file
-    # new_agent.load_model(curriculum_no = 0, beam_no = 0, env_no = 1, ep_number=args['model'])
-
-    if copy_object_weights is None:  # Expand network with random weights
+    # --- Expand network with appropriate weights --- #
+    if not copy_similar_weights:  # Expand network with random weights
         new_agent.expand_random_weights(num_new_inputs)
     else:  # Copy weights for existing features
-        if len(copy_object_weights) != len(new_items):
-            print(
-                "[generate_expanded_agent] Error: length copy_input_weights must match"
-                "number of new input nodes if copy_input_weights != None"
-            )
-            return None
+        for new_item in new_items:
+            most_similar_old_item = get_most_similar_item(new_item, old_env.items)
+            old_item_ind = old_env.items.index(most_similar_old_item)
 
-        total_num_beams = len(old_env.items_lidar) * old_env.num_beams
-        for object_ind in copy_object_weights:
-            input_inds = [
-                object_ind + len(old_env.items_lidar) * beam_i
-                for beam_i in range(old_env.num_beams)
-            ]
-            input_inds += [total_num_beams + object_ind]
-            input_inds += [
-                total_num_beams + len(old_env.inventory_items_quantity) + object_ind
-            ]
+            # NOTE - remove after satisfied with testing
+            print(f"Item most similar to {new_item} is {most_similar_old_item}"
+                  f", w/ index {old_item_ind}")
+
+            total_num_beams = len(old_env.items_lidar) * old_env.num_beams
+            input_inds = [old_item_ind + len(old_env.items_lidar) * beam_i
+                        for beam_i in range(old_env.num_beams)]
+            input_inds += [total_num_beams + old_item_ind]
+            input_inds += [total_num_beams +
+                        len(old_env.inventory_items_quantity) + old_item_ind]
             new_agent.expand_copy_weights(input_inds)
 
     return new_agent
@@ -112,7 +142,7 @@ def get_optimal_actions(self, old_env, old_agent, similar_object_inds, metric="c
         # 0 - observations, 1 - actions, 2 - discounted rewards
         for t in range(episode_SAR[0].shape[0]):
             observation = episode_SAR[0][t]
-            block_in_front_v = observation[total_num_beams + length_inventory :]
+            block_in_front_v = observation[total_num_beams + length_inventory:]
             # check if in front of some block
             id_block_in_front = np.where(block_in_front_v == 1)
             if len(id_block_in_front[0]):
@@ -140,82 +170,3 @@ def get_optimal_actions(self, old_env, old_agent, similar_object_inds, metric="c
 
     optimal_actions = map(lambda x: x[0], actions_taken_s)
     return optimal_actions
-
-
-# lists: items & items_lidar
-# dict: items_id is a dict that's being used as if sorted, accessing keys and valyes
-# dict: items_id_lidar has no functions depending on its ordering
-# dict: inventory_items_quantity is being used sorted
-
-# lidar is dependent on ordered items in self.items_lidar
-# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table']
-# inventory_items_quantity is dependent on ordered items in self.items
-# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick']
-# block_type_vector is dependent on ordered items in self.items (replace 'pogo_stick' with 'air')
-# ex. ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'air']
-
-# TODO - print out lengths of lidarSignals, inventory_items, block_in_front vector
-# TODO - test after making changes
-
-
-# TODO - need to prevent setting initial_inventory
-# TODO - or give warning about order of keys
-
-# NOTE - what should the exact details of the new tree novelty be? should we be
-# adding the item such that it can be detected as the block in front and with LIDAR
-# but in the inventory it's the same tree? That makes it harder to make explorer
-# functions that generalize. Even with wall and fence it was assumed that there
-# would be slots for that in the inventory but those slots would never be taken up.
-# Maybe instead, oak_tree should be a separate item, but the number of tree + oak_tree
-# together should be at least 3 to craft the pogo_stick
-# TODO - change how Env2 works
-
-# NOTE - we give reward for the first two trees broken
-
-"""
-self.items = ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table', 'pogo_stick']
-self.items_id = self.set_items_id(self.items)
-# items_quantity when the episode starts, do not include wall, quantity must be more than 0
-self.items_quantity = {'tree': 6, 'rock': 2, 'rubber_tree' : 1, 'crafting_table': 1, 'pogo_stick': 0}
-self.inventory_items_quantity = {item: 0 for item in self.items}
-self.items_lidar = ['wall', 'crafting_table', 'tree', 'rock', 'rubber_tree']
-self.items_id_lidar = self.set_items_id(self.items_lidar)
-"""
-
-"""
-# If bean hit an object or wall
-                if obj_id_rc != 0:
-                    item = list(self.items_id.keys())[list(self.items_id.values()).index(obj_id_rc)]
-                    if item in self.items_id_lidar:
-                        obj_id_rc = self.items_id_lidar[item]
-                        beam_signal[obj_id_rc - 1] = beam_range
-"""
-
-"""
-observation = lidar_signals + [self.inventory_items_quantity[item] for item in
-                                       sorted(self.inventory_items_quantity)]
-"""
-
-"""
-# one-hot vector of the type of block in front of the agent
-def generate_block_type_vector(self):
-    # reset and create a new dictionary to replace pogostick with air
-    items_dict_2 = copy.deepcopy(self.items_id)
-    items_dict_2['air'] = items_dict_2.pop('pogo_stick') 
-    ret = np.zeros((len(items_dict_2.keys())))# make a new array to return one-hot vector
-    for k,v in items_dict_2.items():
-        if self.block_in_front_str == k:
-            ret[v-1] = 1
-    return ret
-"""
-
-"""
-def set_items_id(self, items):
-    items_id = {}
-    for item in sorted(items):
-        items_id[item] = len(items_id) + 1
-
-    return items_id
-"""
-
-# NOTE - use OrderedDict instead

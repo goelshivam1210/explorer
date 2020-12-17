@@ -24,7 +24,7 @@ be = "cpu"
 class RegularPolicyGradient(object):
 	# constructor
 	def __init__(self, num_actions, input_size, hidden_layer_size, learning_rate,
-				 gamma,decay_rate,greedy_e_epsilon,random_seed):
+				 gamma, decay_rate, greedy_e_epsilon, random_seed):
 		# store hyper-params
 		self._A = num_actions
 		self._D = input_size
@@ -229,7 +229,6 @@ class RegularPolicyGradient(object):
 			self.succ_trajectories.append((np.vstack(self._xs), self._as, 
 										   discounted_epr))
 
-
 		self._xs, self._hs, self._as, self._dlogps, self._drs = [],[],[],[],[] # reset array memory
 
 		#for i in range(0,len(discounted_epr)):
@@ -254,20 +253,19 @@ class RegularPolicyGradient(object):
 		
 		for k in self._model: self._grad_buffer[k] += grad[k] # accumulate grad over batch
 
-
 	# upon addition of new items, called to expand network with given number of new
 	# input nodes, and connections to hidden layer initialized with random weights
 	def expand_random_weights(self, num_new_inputs=None):
 		# determine number of nodes to add
 		if num_new_inputs is None:
-			num_new_inputs =  self._D - int(self._model['W1'].shape[0])
+			num_new_inputs = self._D - int(self._model['W1'].shape[0])
 		elif self._D != int(self._model['W1'].shape[0]) + num_new_inputs:
 			print("[expand_random_weights] Warning: num_new_inputs chosen such that"
 				  "model input layer size will not equal self._D after expansion")
 
-		to_append = np.random.randn(num_new_inputs, self._H)/np.sqrt(num_new_inputs)
-		self._model['W1'] = np.vstack((self._model['W1'], to_append))
-
+		if num_new_inputs != 0:
+			to_append = np.random.randn(num_new_inputs, self._H)/np.sqrt(num_new_inputs)
+			self._model['W1'] = np.vstack((self._model['W1'], to_append))
 
 	def expand_copy_weights(self, copy_object_indices):
 		# TODO - consider adding some randomization to the weights
