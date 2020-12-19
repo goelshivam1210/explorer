@@ -8,6 +8,7 @@ For questions contact shivam.goel@tufts.edu
 '''
 
 import numpy as np
+import math
 import time
 import os
 #from chainer import cuda
@@ -21,6 +22,14 @@ import os
 
 be = "cpu"
 
+def ranked_prob(num_actions, ranking, rank_factor=0.2):
+	# Action: {0: 'Forward', 1: 'Left', 2: 'Right', 3: 'Break', 4: 'Crafting'}
+	# ranking array has to be in the same order as the action array
+	base_prob = (1 - rank_factor) / num_actions
+	denom = num_actions * (num_actions + 1) / 2
+	ranked_probs = list(map(lambda r : base_prob + (1/r) * rank_factor, ranking))
+	return ranked_probs
+
 class RegularPolicyGradient(object):
 	# constructor
 	def __init__(self, num_actions, input_size, hidden_layer_size, learning_rate,
@@ -32,6 +41,26 @@ class RegularPolicyGradient(object):
 		self._learning_rate = learning_rate
 		self._decay_rate = decay_rate
 		self._gamma = gamma
+		
+		self.explore_aprobs = [1.0 / num_actions] * num_actions
+
+		# hyperparameters for clever exploration
+		# explore_type can be 0 (normal) or 1 (clever)
+		self.explore_type = 0
+		self.clever_episode = 0
+
+		self.rho = None
+		self.min_rho = None
+		self.max_rho = None
+		self.rho_lambda = None
+		self.rho_stop = None
+
+		self.clever_lambda = None
+		self.clever_stop = None
+		self.init_clever_aprobs = None
+		self.curr_clever_aprobs = None
+		self.block_in_front_offset = None
+		self.new_obj_ind = None
 		
 		# some temp variables
 		self._xs,self._hs,self._dlogps,self._drs = [],[],[],[]
@@ -136,6 +165,22 @@ class RegularPolicyGradient(object):
 	
 	def set_explore_epsilon(self,e):
 		self._explore_eps = e
+
+	def set_clever_exploration(self, explore_type, min_rho, max_rho, rho_lambda,
+								rho_stop, init_clever_aprobs, clever_lambda,
+								clever_stop, block_in_front_offset, new_obj_ind):
+		self.explore_type = explore_type
+		self.rho = max_rho
+		self.max_rho = max_rho
+		self.min_rho = min_rho
+		self.rho_lambda = rho_lambda
+		self.rho_stop = rho_stop
+		self.init_clever_aprobs = init_clever_aprobs
+		self.curr_clever_aprobs = init_clever_aprobs
+		self.clever_lambda = clever_lambda
+		self.clever_stop = clever_stop
+		self.block_in_front_offset = block_in_front_offset
+		self.new_obj_ind = new_obj_ind
 	
 	# input: current state/observation
 	# output: action index
@@ -143,21 +188,29 @@ class RegularPolicyGradient(object):
 
 		# feed input through network and get output action distribution and hidden layer
 		aprob, h = self.policy_forward(x)
-		
 		#print(aprob)
 		
 		# if exploring
 		if exploring == True:
-			
 			# greedy-e exploration
 			rand_e = np.random.uniform()
-			#print(rand_e)
-			if rand_e < self._explore_eps:
-				# set all actions to be equal probability
-				aprob[0] = [ 1.0/len(aprob[0]) for i in range(len(aprob[0]))]
-				#print("!")
 		
-		
+			if self.explore_type == 1: # clever exploration based on ranking
+				# check if in front of new object
+				if self.get_block_in_front(x) == self.new_obj_ind:
+					# check if random value less than new_object epsilon (rho)
+					if rand_e < self.rho: 
+						aprob[0] = self.explore_aprobs
+						# use ranking-based probs if not past clever episode limit
+						if self.clever_episode < self.clever_stop:
+							aprob[0] = list(self.curr_clever_aprobs)
+				else: # use epsilon if not in front of new object
+					if rand_e < self._explore_eps:
+						aprob[0] = self.explore_aprobs
+			else: # doing regular exploration (explore_type == 0)
+				if rand_e < self._explore_eps:
+					aprob[0] = self.explore_aprobs
+
 		if np.isnan(np.sum(aprob)):
 			print(aprob)
 			aprob[0] = [ 1.0/len(aprob[0]) for i in range(len(aprob[0]))]
@@ -183,6 +236,15 @@ class RegularPolicyGradient(object):
 		self._as.append(a)
 
 		return a
+
+	def get_block_in_front(self, x):
+		block_in_front_v = x[self.block_in_front_offset :]
+		# check if in front of some block
+		id_block_in_front = np.where(block_in_front_v == 1)
+		if len(id_block_in_front[0]):
+			return id_block_in_front[0][0]
+		else:
+			return -1
 
 	# after process_step, this function needs to be called to set the reward
 	def give_reward(self,reward):
@@ -252,6 +314,20 @@ class RegularPolicyGradient(object):
 		#print("--- %s seconds for policy backward ---" % (time.time() - start_time))
 		
 		for k in self._model: self._grad_buffer[k] += grad[k] # accumulate grad over batch
+
+		# decay curr_clever_aprobs towrd explore_aprobs and decay rho towards min_rho
+		# if doing cleveration exploration and not at respective stop episodes
+		# TODO - ensure this works
+		if self.explore_type == 1:
+			if self.clever_episode < self.clever_stop:
+				self.curr_clever_aprobs = np.array(self.explore_aprobs) + \
+					(self.init_clever_aprobs - np.array(self.explore_aprobs)) * \
+						math.exp(-self.clever_lambda * self.clever_episode)	
+			if self.clever_episode < self.rho_stop:
+				self.rho = self.min_rho + \
+					(self.max_rho - self.min_rho) * \
+						math.exp(-self.rho_lambda* self.clever_episode)
+			self.clever_episode += 1
 
 	# upon addition of new items, called to expand network with given number of new
 	# input nodes, and connections to hidden layer initialized with random weights
