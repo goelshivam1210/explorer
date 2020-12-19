@@ -27,10 +27,12 @@ from explorer import generate_adaptive_agent, generate_expanded_agent
 from params_baseline import *
 import matplotlib.pyplot as plt
 
-def save_results (data, tag, tag2, tag3):
+def save_results (data, tag, tag2, tag3, tag4):
     os.makedirs("plot" + os.sep + "data", exist_ok=True)
     if tag == 'train_results':
         db_file_name = "plot/data/train_results_" + str(tag2)+ str(tag3)+".csv"
+        if tag4 == True:
+            db_file_name = "plot/data/train_results_" + str(tag2)+ str(tag3)+"clever.csv"
         with open(db_file_name, 'a') as f: # append to the file created
             writer = csv.writer(f)
             writer.writerow(data)
@@ -162,23 +164,27 @@ if __name__ == "__main__":
 
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
-            save_results(data, tag = 'train_results', tag2 = args['gridworld'], tag3 = args['sim_weights'])
+            save_results(data, tag = 'train_results', tag2 = args['gridworld'], tag3 = args['sim_weights'], tag4 = args['clever'])
 
             env.reset()
             reward_sum = 0
-            # save only 4 models
+            # save only some models
             if episode% (EPISODES/args['num_model']) == 0:
-                if args['sim_weights'] == True:
-                    agent.save_model(0,0,args['gridworld']+20000,episode)
+                if (args['sim_weights'] == True and args['clever'] != True):
+                    agent.save_model(0,0,args['gridworld']+20000, episode)
+                elif (args['clever'] == True and args['sim_weights'] == True):
+                        agent.save_model(0,0,args['gridworld']+50000, episode)
                 else:
-                    agent.save_model(0,0,args['gridworld']+20,episode)
+                    agent.save_model(0,0,args['gridworld']+20, episode)
     
             if episode == args['trials_novelty']:
                 ######## change the file name here
-                if args['sim_weights'] == True:
-                    agent.save_model(0,0,args['gridworld']+20000,'mid')
+                if (args['sim_weights'] == True and args['clever'] != True):
+                    agent.save_model(0,0,args['gridworld']+20000, 'mid')
+                elif (args['clever'] == True and args['sim_weights'] == True):
+                        agent.save_model(0,0,args['gridworld']+50000, 'mid')
                 else:
-                    agent.save_model(0,0,args['gridworld']+20,'mid') # Harcoded for now
+                    agent.save_model(0,0,args['gridworld']+20, 'mid')
 
                 if args['gridworld']==1:
                     newenv = gym.make(env_id_1, map_width=width, map_height=height, goal_env=type_of_env, is_final=final_status)
@@ -205,10 +211,12 @@ if __name__ == "__main__":
                 agent=new_agent
                 env.reset()
             if episode > EPISODES:
-                if args['sim_weights'] == True:
-                    agent.save_model(0,0,args['gridworld']+20000,episode)
+                if (args['sim_weights'] == True and args['clever']!=True):
+                    agent.save_model(0,0,args['gridworld']+20000, 'final')
+                elif (args['clever'] == True and args['sim_weights'] == True):
+                        agent.save_model(0,0,args['gridworld']+50000, 'final')
                 else:
-                    agent.save_model(0,0,args['gridworld']+20,'final')
+                    agent.save_model(0,0,args['gridworld']+20, 'final')
                 break
                 
                 
