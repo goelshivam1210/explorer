@@ -47,7 +47,7 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     # load the learning agent
-    parameter_list = {
+    agent_params = {
         "num_actions": actionCnt, 
         "input_size": D, 
         "hidden_layer_size": NUM_HIDDEN,
@@ -55,11 +55,11 @@ if __name__ == "__main__":
         "gamma": GAMMA,
         "decay_rate": DECAY_RATE,
         "greedy_e_epsilon": MAX_EPSILON,
-        "random_seed": random_seed
+        "random_seed": random_seed,
     }
 
-    # NOTE - THIS IS THE PARAMETER LIST FOR V1Env, V2Env, & v3Env
-    # parameter_list = {
+    # NOTE - params for running on V1Env, V2Env, & v3Env without adaptation first
+    # agent_params = {
     #     "num_actions": actionCnt, 
     #     "input_size": 62, 
     #     "hidden_layer_size": NUM_HIDDEN,
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     #     "random_seed": random_seed
     # }
 
-    agent = RegularPolicyGradient(**parameter_list)
+    agent = RegularPolicyGradient(**agent_params)
 
     # agent = RegularPolicyGradient(actionCnt,D,NUM_HIDDEN,\
     #                  LEARNING_RATE,GAMMA,DECAY_RATE,\

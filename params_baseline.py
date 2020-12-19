@@ -22,6 +22,10 @@ random_seed = 1
 EPISODES = 300000
 LAMBDA = -math.log(0.01) / EXPLORATION_STOP # speed of decay
 
+# clever exploration variables
+MAX_RHO = 0.4
+MIN_RHO = 0.1
+
 action_space = ['W','A','D','U','C']
 
 # environment variables

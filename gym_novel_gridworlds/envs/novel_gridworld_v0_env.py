@@ -78,7 +78,6 @@ class NovelGridworldV0Env(gym.Env):
         self.max_beam_range = 40
         self.items_lidar = ['wall', 'tree', 'rock', 'rubber_tree', 'crafting_table']
         self.items_id_lidar = self.set_items_id(self.items_lidar)
-        # NOTE - changed to account for block_type_vector
         self.low = np.array([0] * (len(self.items_lidar) * self.num_beams) + [0] * len(self.inventory_items_quantity) +
                             [0] * len(self.generate_block_type_vector()))
         self.high = np.array([self.max_beam_range] * (len(self.items_lidar) * self.num_beams) + [6] * len(
@@ -247,8 +246,7 @@ class NovelGridworldV0Env(gym.Env):
         return ret
 
     def set_items_id(self, items):
-        # NOTE - changed to be OrderedDict and away from sorting;
-        # necessary to maintain item IDs between environment switches
+        # OrderedDict to maintain item IDs between environment switches
         items_id = OrderedDict({})
         for item in items:
             items_id[item] = len(items_id) + 1
@@ -262,14 +260,9 @@ class NovelGridworldV0Env(gym.Env):
 
         lidar_signals = self.get_lidarSignal()
         block_type_vector = self.generate_block_type_vector()
-        # NOTE - changed to use OrderedDict and get away from sorting;
-        # necessary to maintain item IDs between environment switches
+        # OrderedDict to maintain item IDs between environment switches
         observation = lidar_signals + list(self.inventory_items_quantity.values())
-        # observation = lidar_signals + [self.inventory_items_quantity[item] for item in
-        #                                sorted(self.inventory_items_quantity)] 
-                                       
         observation = np.concatenate((observation, block_type_vector))
-
         return np.array(observation)
 
     def step(self, action):

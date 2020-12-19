@@ -23,7 +23,7 @@ import numpy as np
 import gym_novel_gridworlds
 
 from RegularPolicyGradient import RegularPolicyGradient
-from explorer import generate_adaptive_agent
+from explorer import generate_adaptive_agent, generate_expanded_agent
 from params_baseline import *
 import matplotlib.pyplot as plt
 
@@ -35,18 +35,8 @@ def save_results (data, tag, tag2, tag3):
             writer = csv.writer(f)
             writer.writerow(data)
 
-def str2bool(v):
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 if __name__ == "__main__":
-
     ap = argparse.ArgumentParser()
     ap.add_argument("-C", "--continue", default=False, help="Want to continue training or start from scratch", type=bool)
     ap.add_argument("-M", "--model", default= 'final', help="Episode number of the model you want to load")
@@ -58,12 +48,13 @@ if __name__ == "__main__":
     ap.add_argument("-G", "--gridworld", default= 0, help="New (novel) env to be loaded (0, 1, 2, or 3)", type=int)
     ap.add_argument("-T", "--trials_novelty", default=700, help="Number of trials (episodes) to run before switching envs", type=int)
     ap.add_argument("-S", "--sim_weights", default=False, help="Use weights from similar object for expanding network", type=bool)
+    ap.add_argument("-Q", "--clever", default=False, help="Use ranking-augmented probabilities clever exploration after adaptation", type=bool)
 
     ap.add_argument("-print_output", default="", help="print stuff")
     args = vars(ap.parse_args())
 
     # load the learning agent
-    parameter_list = {
+    agent_params = {
         "num_actions": actionCnt, 
         "input_size": D, 
         "hidden_layer_size": NUM_HIDDEN,
@@ -74,7 +65,17 @@ if __name__ == "__main__":
         "random_seed": random_seed
     }
 
-    agent = RegularPolicyGradient(**parameter_list)
+    # params for clever exploration (used if argument clever == True)
+    clever_params = {
+		"min_rho": MIN_RHO,
+		"max_rho": MAX_RHO,
+		"rho_lambda": LAMBDA,
+		"rho_stop": EXPLORATION_STOP,
+		"clever_lambda": LAMBDA,
+		"clever_stop": EXPLORATION_STOP
+    }
+
+    agent = RegularPolicyGradient(**agent_params)
 
     # NOTE - use this to load a pre-trained model before doing experiment
     if args['continue'] == True:
@@ -94,6 +95,10 @@ if __name__ == "__main__":
     done_arr = []
     env_flag = 0
 
+    adapted = False
+    adapted_episode = 0
+    count_successes = 0
+
     env.reset()
 
     while True:    
@@ -101,7 +106,13 @@ if __name__ == "__main__":
         obs = env.get_observation()
 
         # set epsilon based on the decay rate
-        epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA*episode)
+        if adapted is False:
+            epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * \
+                math.exp(-LAMBDA * episode)
+        else:
+            epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * \
+                math.exp(-LAMBDA * adapted_episode)
+        
         agent.set_explore_epsilon(epsilon)
 
         # act 
@@ -122,9 +133,15 @@ if __name__ == "__main__":
         t_step += 1
         
         if t_step > t_limit or done == True:
+            # count if episode was successful
+            if done == True:
+                count_successes += 1
+
             # print every 100th episode results
             if (episode%int(args['print_every']) == 0):
                 print("Episode--> {} Reward --> {} EPS --> {}".format(episode, reward_sum, np.round(agent._explore_eps, decimals = 2)))
+                # NOTE - for testing that there are successful trajectories
+                # print(f"Successful episodes: {count_successes}")
 
             reward_arr.append(reward_sum)
             avg_reward.append(np.mean(reward_arr[-40:]))
@@ -139,6 +156,10 @@ if __name__ == "__main__":
         
             # reset environment
             episode += 1
+
+            if adapted == True:
+                adapted_episode += 1
+
             ## save the rewards for plotting
             data = [episode, reward_sum, agent._explore_eps]
             save_results(data, tag = 'train_results', tag2 = args['gridworld'], tag3 = args['sim_weights'])
@@ -152,8 +173,6 @@ if __name__ == "__main__":
                 else:
                     agent.save_model(0,0,args['gridworld']+20,episode)
     
-            # change to a new_env after 700 trials (episodes)
-            # TODO - turn into an argument (or change back to 700)
             if episode == args['trials_novelty']:
                 ######## change the file name here
                 if args['sim_weights'] == True:
@@ -175,7 +194,13 @@ if __name__ == "__main__":
                     print(f"Continuing with environment {env_id_0}")
 
                 # generate the expanded agent
-                new_agent=generate_adaptive_agent(env, newenv, agent, parameter_list, args['sim_weights'])
+                # new_agent=generate_adaptive_agent(env, newenv, agent, agent_params, args['sim_weights'])
+                new_agent = generate_adaptive_agent(env, newenv, agent, agent_params,
+                        copy_similar_weights=args['sim_weights'],
+                        explore_clever=args['clever'],
+                        clever_params=clever_params, rank_factor=0.5, 
+                        optimal_metric="counts")
+                adapted = True
                 env=newenv
                 agent=new_agent
                 env.reset()
