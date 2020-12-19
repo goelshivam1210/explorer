@@ -80,7 +80,7 @@ def generate_adaptive_agent(old_env, new_env, old_agent, agent_params,
         similar_obj_index = get_most_similar_item(new_item, old_env.items)
         action_ranks = get_optimal_actions(old_env, old_agent, 
                                            similar_obj_index, optimal_metric)
-        new_agent = set_clever_exploration(new_agent, old_env, action_ranks, 
+        new_agent = set_clever_exploration(new_agent, old_env, new_env, action_ranks, 
                                            rank_factor, clever_params)
     
     return new_agent
@@ -112,28 +112,29 @@ def generate_expanded_agent(old_env, new_env, old_agent, agent_params,
         new_agent.expand_random_weights(num_new_inputs)
     else:  # Copy weights for existing features
         for new_item in new_items:
-            most_similar_old_item = get_most_similar_item(new_item, old_env.items)
-            old_item_ind = old_env.items.index(most_similar_old_item)
-
-            # NOTE - remove after satisfied with testing
-            print(f"Item most similar to {new_item} is {most_similar_old_item}"
-                  f", w/ index {old_item_ind}")
+            # most_similar_old_item = get_most_similar_item(new_item, old_env.items)
+            # old_item_ind = old_env.items.index(most_similar_old_item)
+            similar_item_ind = get_most_similar_item(new_item, old_env.items)
+            similar_name = old_env.items[similar_item_ind]
 
             total_num_beams = len(old_env.items_lidar) * old_env.num_beams
-            input_inds = [old_item_ind + len(old_env.items_lidar) * beam_i
+            input_inds = [similar_item_ind + len(old_env.items_lidar) * beam_i
                         for beam_i in range(old_env.num_beams)]
-            input_inds += [total_num_beams + old_item_ind]
+            input_inds += [total_num_beams + similar_item_ind]
             input_inds += [total_num_beams +
-                        len(old_env.inventory_items_quantity) + old_item_ind]
+                        len(old_env.inventory_items_quantity) + similar_item_ind]
+
             new_agent.expand_copy_weights(input_inds)
 
     return new_agent
 
 
-def set_clever_exploration(new_agent, old_env, action_ranks, rank_factor, clever_params):
-    total_num_beams = len(old_env.items_lidar) * old_env.num_beams
-    length_inventory = len(old_env.inventory_items_quantity)
-    num_actions = len(old_env.action_str)
+def set_clever_exploration(new_agent, old_env, new_env, action_ranks,
+                           rank_factor, clever_params):
+    total_num_beams = len(new_env.items_lidar) * new_env.num_beams
+    length_inventory = len(new_env.inventory_items_quantity)
+
+    num_actions = len(new_env.action_str)
     ranked_aprobs = ranked_prob(num_actions, action_ranks, rank_factor)
 
     clever_params['explore_type'] = 1
@@ -145,7 +146,6 @@ def set_clever_exploration(new_agent, old_env, action_ranks, rank_factor, clever
     return new_agent
 
 
-# TODO - change to be for only 1 similar object
 def get_optimal_actions(old_env, old_agent, similar_obj_ind,
                         optimal_metric="counts"):
     # similar_obj_ind is the index of the similar object (within items array)
@@ -184,18 +184,15 @@ def get_optimal_actions(old_env, old_agent, similar_obj_ind,
 
     # rank optimal actions for each object based on times taken
     if optimal_metric == "counts":
-        # actions_taken_s = sorted(actions_taken, key=lambda x: x[1], reverse=True)
         metric_arr = np.array(list(map(lambda x : x[1], actions_taken)))
     # rank optimal actions for each object based on sum of discounted rewards
     elif optimal_metric == "reward":
-        # actions_taken_s = sorted(actions_taken, key=lambda x: sum(x[2]), reverse=True)
         metric_arr = np.array(list(map(lambda x : sum(x[2]), actions_taken)))
     else:
         print(
             "[get_optimal_actions] Error: only metrics 'counts' and 'reward' available"
         )
 
-    # optimal_actions = map(lambda x: x[0], actions_taken_s)
     temp = metric_arr.argsort()
     action_ranks = np.empty_like(temp)
     action_ranks[temp] = np.arange(len(metric_arr))

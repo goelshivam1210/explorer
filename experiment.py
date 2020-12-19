@@ -141,7 +141,7 @@ if __name__ == "__main__":
             if (episode%int(args['print_every']) == 0):
                 print("Episode--> {} Reward --> {} EPS --> {}".format(episode, reward_sum, np.round(agent._explore_eps, decimals = 2)))
                 # NOTE - for testing that there are successful trajectories
-                print(f"Successful episodes: {count_successes}")
+                # print(f"Successful episodes: {count_successes}")
 
             reward_arr.append(reward_sum)
             avg_reward.append(np.mean(reward_arr[-40:]))

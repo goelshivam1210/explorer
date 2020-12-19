@@ -19,16 +19,7 @@ import os
 #be = "gpu"
 #device = 0
 
-
 be = "cpu"
-
-def ranked_prob(num_actions, ranking, rank_factor=0.2):
-	# Action: {0: 'Forward', 1: 'Left', 2: 'Right', 3: 'Break', 4: 'Crafting'}
-	# ranking array has to be in the same order as the action array
-	base_prob = (1 - rank_factor) / num_actions
-	denom = num_actions * (num_actions + 1) / 2
-	ranked_probs = list(map(lambda r : base_prob + (1/r) * rank_factor, ranking))
-	return ranked_probs
 
 class RegularPolicyGradient(object):
 	# constructor
@@ -131,11 +122,9 @@ class RegularPolicyGradient(object):
 			
 			h[np.isnan(h)] = np.random.random_sample()
 			h[np.isinf(h)] = np.random.random_sample()
-			
 
 		if np.isnan(np.sum(h)):
 			print("Still nan!")
-		
 		
 		h[h<0] = 0 # ReLU nonlinearity
 		logp = h.dot(self._model['W2'])
@@ -198,11 +187,14 @@ class RegularPolicyGradient(object):
 			if self.explore_type == 1: # clever exploration based on ranking
 				# check if in front of new object
 				if self.get_block_in_front(x) == self.new_obj_ind:
+					# print(">> Front of new obj")
 					# check if random value less than new_object epsilon (rho)
-					if rand_e < self.rho: 
+					if rand_e < self.rho:
+						# print(">>> Exploring new obj")
 						aprob[0] = self.explore_aprobs
 						# use ranking-based probs if not past clever episode limit
 						if self.clever_episode < self.clever_stop:
+							# print(f"Clever: {list(self.curr_clever_aprobs)}")
 							aprob[0] = list(self.curr_clever_aprobs)
 				else: # use epsilon if not in front of new object
 					if rand_e < self._explore_eps:
@@ -248,13 +240,12 @@ class RegularPolicyGradient(object):
 
 	# after process_step, this function needs to be called to set the reward
 	def give_reward(self,reward):
-		
 		# store the reward in the list of rewards
 		self._drs.append(reward)
 
 	# reset to be used when evaluating
 	def reset(self):
-		self._xs,self._hs,self._dlogps,self._drs = [],[],[],[] # reset 
+		self._xs,self._as,self._hs,self._dlogps,self._drs = [],[],[],[],[] # reset 
 		self._grad_buffer = { k : np.zeros_like(v) for k,v in self._model.items() } # update buffers that add up gradients over a batch
 		self._rmsprop_cache = { k : np.zeros_like(v) for k,v in self._model.items() } # rmsprop memory
 		
@@ -317,12 +308,11 @@ class RegularPolicyGradient(object):
 
 		# decay curr_clever_aprobs towrd explore_aprobs and decay rho towards min_rho
 		# if doing cleveration exploration and not at respective stop episodes
-		# TODO - ensure this works
 		if self.explore_type == 1:
 			if self.clever_episode < self.clever_stop:
 				self.curr_clever_aprobs = np.array(self.explore_aprobs) + \
 					(self.init_clever_aprobs - np.array(self.explore_aprobs)) * \
-						math.exp(-self.clever_lambda * self.clever_episode)	
+						math.exp(-self.clever_lambda * self.clever_episode)
 			if self.clever_episode < self.rho_stop:
 				self.rho = self.min_rho + \
 					(self.max_rho - self.min_rho) * \
