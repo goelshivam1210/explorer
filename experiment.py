@@ -109,8 +109,7 @@ if __name__ == "__main__":
 
         # set epsilon based on the decay rate
         if adapted is False:
-            epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * \
-                math.exp(-LAMBDA * episode)
+            epsilon = MIN_EPSILON
         else:
             epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * \
                 math.exp(-LAMBDA * adapted_episode)
@@ -203,13 +202,19 @@ if __name__ == "__main__":
                 # new_agent=generate_adaptive_agent(env, newenv, agent, agent_params, args['sim_weights'])
                 new_agent = generate_adaptive_agent(env, newenv, agent, agent_params,
                         copy_similar_weights=args['sim_weights'],
+                        weights_noise_SD = 0.1,
                         explore_clever=args['clever'],
-                        clever_params=clever_params, rank_factor=0.5, 
+                        clever_params=clever_params,
+                        rank_factor=0.5, 
                         optimal_metric="counts")
+
                 adapted = True
+                EPISODES = EPISODES + args['trials_novelty']
                 env=newenv
                 agent=new_agent
+
                 env.reset()
+
             if episode > EPISODES:
                 if (args['sim_weights'] == True and args['clever']!=True):
                     agent.save_model(0,0,args['gridworld']+20000, 'final')
