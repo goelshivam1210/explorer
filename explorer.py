@@ -27,7 +27,8 @@ import spacy
 import en_core_web_lg
 
 def generate_adaptive_agent(old_env, new_env, old_agent, agent_params,
-                            copy_similar_weights=False, explore_clever=False,
+                            copy_similar_weights=False, weights_noise_SD=None,
+                            explore_clever=False,
                             clever_params=None, rank_factor=None, 
                             optimal_metric="counts"):
     """generate_adaptive_agent produces a new agent (RegularPolicyGradient object),
@@ -66,13 +67,19 @@ def generate_adaptive_agent(old_env, new_env, old_agent, agent_params,
         model_file ([type]): [description]
         copy_similar_weights (bool, optional): [description]. Defaults to False.
     """
+    if copy_similar_weights is True and weights_noise_SD is None:
+        print(f"[generate_adaptive_agent] Error: weights_noise_SD must be specified "
+               "if copy_similar_weights == True")
+        return None
+
+    
     if explore_clever is True and (clever_params is None or rank_factor is None):
         print(f"[generate_adaptive_agent] Error: clever_params and rank_factor "
                "must be set if explore_clever == True")
         return None
 
     new_agent = generate_expanded_agent(old_env, new_env, old_agent, agent_params,
-                            copy_similar_weights)
+                            copy_similar_weights, weights_noise_SD)
 
     if explore_clever is True:
         # TODO - adapt to work with multiple items (later)
@@ -87,7 +94,13 @@ def generate_adaptive_agent(old_env, new_env, old_agent, agent_params,
 
 
 def generate_expanded_agent(old_env, new_env, old_agent, agent_params,
-                            copy_similar_weights=False):
+                            copy_similar_weights=False, weights_noise_SD=None):
+    # ---- Check proper arguments first --- #
+    if copy_similar_weights is True and weights_noise_SD is None:
+        print(f"[generate_adaptive_agent] Error: weights_noise_SD must be specified "
+               "if copy_similar_weights == True")
+        return None
+
     # --- Get num new objects and check correct feature vector size in new_env --- #
     new_items = list(set(new_env.items) - set(old_env.items))  # names of new items
     old_input_size = len(old_env.high)
@@ -124,7 +137,7 @@ def generate_expanded_agent(old_env, new_env, old_agent, agent_params,
             input_inds += [total_num_beams +
                         len(old_env.inventory_items_quantity) + similar_item_ind]
 
-            new_agent.expand_copy_weights(input_inds)
+            new_agent.expand_copy_weights(input_inds, weights_noise_SD)
 
     return new_agent
 
@@ -140,7 +153,7 @@ def set_clever_exploration(new_agent, old_env, new_env, action_ranks,
     clever_params['explore_type'] = 1
     clever_params['init_clever_aprobs'] = ranked_aprobs
     clever_params['block_in_front_offset'] = total_num_beams + length_inventory
-    clever_params['new_obj_ind'] = len(old_env.items) + 1
+    clever_params['new_obj_ind'] = len(old_env.items)
 
     new_agent.set_clever_exploration(**clever_params)
     return new_agent

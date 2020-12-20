@@ -333,9 +333,13 @@ class RegularPolicyGradient(object):
 			to_append = np.random.randn(num_new_inputs, self._H)/np.sqrt(num_new_inputs)
 			self._model['W1'] = np.vstack((self._model['W1'], to_append))
 
-	def expand_copy_weights(self, copy_object_indices):
-		# TODO - consider adding some randomization to the weights
-		for ind in copy_object_indices:
+	def expand_copy_weights(self, copy_node_indices, noise_SD=0.1):
+		for ind in copy_node_indices:
+			weights_to_add = self._model['W1'][ind]
+			noise = np.random.normal(0, noise_SD, weights_to_add.shape)
+			weights_to_add += noise
+			weights_to_add = np.clip(weights_to_add, -1, 1)
+
 			self._model['W1'] = np.vstack((self._model['W1'], self._model['W1'][ind]))
 
 	# called to update model parameters, generally every N episodes/games for some N
@@ -358,7 +362,6 @@ class RegularPolicyGradient(object):
 
 ## TODO: adapt to old style
 	def load_model(self, curriculum_no, beam_no, env_no, ep_number): 
-
 		experiment_file_name = '_c' + str(curriculum_no) + '_b' + str(beam_no) + '_e' + str(env_no) + '_ep'+str(ep_number)
 		path_to_load = self.log_dir + os.sep + self.env_id + experiment_file_name + '.npz'
 		data = np.load(path_to_load)
