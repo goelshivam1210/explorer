@@ -187,14 +187,14 @@ class RegularPolicyGradient(object):
 			if self.explore_type == 1: # clever exploration based on ranking
 				# check if in front of new object
 				if self.get_block_in_front(x) == self.new_obj_ind:
-					print(">> Front of new obj")
+					# print(">> Front of new obj")
 					# check if random value less than new_object epsilon (rho)
 					if rand_e < self.rho:
-						print(">>> Exploring new obj")
+						# print(">>> Exploring new obj")
 						aprob[0] = self.explore_aprobs
 						# use ranking-based probs if not past clever episode limit
 						if self.clever_episode < self.clever_stop:
-							print(f"Clever: {list(self.curr_clever_aprobs)}")
+							# print(f"Clever: {list(self.curr_clever_aprobs)}")
 							aprob[0] = list(self.curr_clever_aprobs)
 				else: # use epsilon if not in front of new object
 					if rand_e < self._explore_eps:
