@@ -173,6 +173,8 @@ if __name__ == "__main__":
                     agent.save_model(0,0,args['gridworld']+20000, episode)
                 elif (args['clever'] == True and args['sim_weights'] == True):
                         agent.save_model(0,0,args['gridworld']+50000, episode)
+                elif (args['clever'] == True and args['sim_weights'] == False):
+                        agent.save_model(0,0,args['gridworld']+30000, episode)
                 else:
                     agent.save_model(0,0,args['gridworld']+20, episode)
     
@@ -220,6 +222,8 @@ if __name__ == "__main__":
                     agent.save_model(0,0,args['gridworld']+20000, 'final')
                 elif (args['clever'] == True and args['sim_weights'] == True):
                         agent.save_model(0,0,args['gridworld']+50000, 'final')
+                elif (args['clever'] == True and args['sim_weights'] == False):
+                        agent.save_model(0,0,args['gridworld']+30000, 'final')
                 else:
                     agent.save_model(0,0,args['gridworld']+20, 'final')
                 break
