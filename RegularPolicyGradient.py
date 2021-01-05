@@ -330,7 +330,7 @@ class RegularPolicyGradient(object):
 				  "model input layer size will not equal self._D after expansion")
 
 		if num_new_inputs != 0:
-			to_append = np.random.randn(num_new_inputs, self._H)/np.sqrt(num_new_inputs)
+			to_append = np.random.randn(num_new_inputs, self._H) / np.sqrt(self._D)
 			self._model['W1'] = np.vstack((self._model['W1'], to_append))
 
 	def expand_copy_weights(self, copy_node_indices, noise_SD=0.1):
