@@ -319,6 +319,7 @@ class RegularPolicyGradient(object):
 						math.exp(-self.rho_lambda* self.clever_episode)
 			self.clever_episode += 1
 
+
 	# upon addition of new items, called to expand network by inserting new input nodes
 	# at the specified locations (corresponding to the added features) with connections 
 	# to hidden layer initialized with random weights
@@ -331,23 +332,31 @@ class RegularPolicyGradient(object):
 
 		if num_new_features != 0:
 			to_append = np.random.randn(num_new_features, self._H) / np.sqrt(self._D)
-			# TODO - remove after debug
-			# print(self._model['W1'].shape)
-			# print("Indices: ", new_feature_inds)
 			for i, new_feature_ind in enumerate(new_feature_inds):
 				self._model['W1'] = np.insert(self._model['W1'], new_feature_ind,
 											to_append[i], axis=0)
-				# print(self._model['W1'].shape)
 
-
-	def expand_copy_weights(self, copy_node_indices, noise_SD=0.1):
-		for ind in copy_node_indices:
-			weights_to_add = self._model['W1'][ind]
+	# upon addition of new items, called to expand network by inserting new input nodes
+	# at the specified locations (corresponding to the new added features)
+	# with connections to hidden layer initialized with weights taken from the 
+	# corresponding input nodes for an existing similar item (specified by
+	# similar_feature_inds), with noise added from a normal distribution with mean=0
+	# and SD = noise_SD
+	def expand_copy_weights(self, new_feature_inds, similar_feature_inds, noise_SD=0.1):
+		num_new_features = len(new_feature_inds)
+		# confirm that number of new features corresponds to size of new input layer
+		if self._D != int(self._model['W1'].shape[0]) + num_new_features:
+			print("[expand_random_weights] Warning: num_new_inputs chosen such that"
+				  "model input layer size will not equal self._D after expansion")
+		
+		for i in range(len(new_feature_inds)):
+			weights_to_add = self._model['W1'][similar_feature_inds[i]]
 			noise = np.random.normal(0, noise_SD, weights_to_add.shape)
 			weights_to_add += noise
 			weights_to_add = np.clip(weights_to_add, -1, 1)
+			self._model['W1'] = np.insert(self._model['W1'], new_feature_inds[i],
+											weights_to_add, axis=0)
 
-			self._model['W1'] = np.vstack((self._model['W1'], self._model['W1'][ind]))
 
 	# called to update model parameters, generally every N episodes/games for some N
 	def update_parameters(self):

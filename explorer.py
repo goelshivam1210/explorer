@@ -121,28 +121,30 @@ def generate_expanded_agent(old_env, new_env, old_agent, agent_params,
     new_agent.load_model_from_dict(old_agent._model)  # Load model from old agent
 
     # --- Expand network with appropriate weights --- #
-    if not copy_similar_weights:  # Expand network with random weights
-        for new_item_num in range(len(new_items)):
-            new_item_ind = len(new_env.items) - (new_item_num + 1)
-            new_feature_inds = get_indices_new_features(new_env, new_item_ind)
-            # TODO - test, then write comment explaining
+    for new_item_num in range(len(new_items)):
+        # Supporting expanding network upon addition of multiple novel items at once
+        # Get indices where new item's features are in feature vector (& input layer)
+        new_item_ind = len(new_env.items) - (new_item_num + 1)
+        new_feature_inds = get_indices_new_features(new_env, new_item_ind)
+
+        if not copy_similar_weights:  # Expand network with random weights
             new_agent.expand_random_weights(new_feature_inds)
+        
+        else:  # Expand network by copying weights from most similar existing item
+            similar_item_ind = get_most_similar_item(new_items[new_item_num], 
+                                                    old_env.items)
+            # similar_name = old_env.items[similar_item_ind]  # For debugging
 
-    else:  # Copy weights for existing features
-        for new_item in new_items:
-            # most_similar_old_item = get_most_similar_item(new_item, old_env.items)
-            # old_item_ind = old_env.items.index(most_similar_old_item)
-            similar_item_ind = get_most_similar_item(new_item, old_env.items)
-            similar_name = old_env.items[similar_item_ind]
-
+            # Calculate indices of existing input nodes corresponding to similar item
             total_num_beams = len(old_env.items_lidar) * old_env.num_beams
-            input_inds = [similar_item_ind + len(old_env.items_lidar) * beam_i
+            similar_feature_inds = [similar_item_ind + len(old_env.items_lidar) * beam_i
                         for beam_i in range(old_env.num_beams)]
-            input_inds += [total_num_beams + similar_item_ind]
-            input_inds += [total_num_beams +
+            similar_feature_inds += [total_num_beams + similar_item_ind]
+            similar_feature_inds += [total_num_beams +
                         len(old_env.inventory_items_quantity) + similar_item_ind]
 
-            new_agent.expand_copy_weights(input_inds, weights_noise_SD)
+            new_agent.expand_copy_weights(new_feature_inds, similar_feature_inds,
+                                            weights_noise_SD)
 
     return new_agent
 
@@ -184,13 +186,14 @@ def get_indices_new_features(new_env, new_item_ind):
 
 def get_optimal_actions(old_env, old_agent, similar_obj_ind,
                         optimal_metric="counts"):
-    # similar_obj_ind is the index of the similar object (within items array)
-    # actions_taken is list of actions, where each entry is a a list of the action_id
-    # the umber of times it was taken in front of the similar object, and list of
-    # discounted rewards received
-    # get_optimal_actions returns a ranking array in the same order as the action
-    # IDs defined in old_env, with the best action ranked highest, with ranks in range
-    # [num_actions, 1] inclusive
+    """ similar_obj_ind is the index of the similar object (within items array)
+    actions_taken is list of actions, where each entry is a a list of the action_id
+    the number of times it was taken in front of the similar object, and list of
+    discounted rewards received
+    get_optimal_actions returns a ranking array in the same order as the action
+    IDs defined in old_env, with the best action ranked highest, with ranks in range
+    [num_actions, 1] inclusive
+    """
     actions_taken = [[a_ind, 0, []] for a_ind in range(len(old_env.action_str))]
 
     total_num_beams = len(old_env.items_lidar) * old_env.num_beams
@@ -238,8 +241,10 @@ def get_optimal_actions(old_env, old_agent, similar_obj_ind,
 
 
 def get_most_similar_item(item, old_items):
-    # given name of new item, and list of names of old items, returns the index of
-    # the most similar item
+    """
+    given name of new item, and list of names of old items, returns the index of
+    the most similar item
+    """
     nlp = en_core_web_lg.load()
     item_token = nlp(item.lower().replace('_', ' '))
     similarities = []
@@ -261,10 +266,3 @@ def ranked_prob(num_actions, ranking, rank_factor=0.2):
 	
 	denom = num_actions * (num_actions + 1) / 2
 	return (ranking / denom * rank_factor) + base_prob
-
-if __name__ == "__main__":
-    import gym
-    from params_baseline import *
-    import gym_novel_gridworlds
-    newenv = gym.make(env_id_1, map_width=width, map_height=height, goal_env=type_of_env, is_final=final_status)
-    print(get_indices_new_features(newenv, 6))
