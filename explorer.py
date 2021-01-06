@@ -122,7 +122,12 @@ def generate_expanded_agent(old_env, new_env, old_agent, agent_params,
 
     # --- Expand network with appropriate weights --- #
     if not copy_similar_weights:  # Expand network with random weights
-        new_agent.expand_random_weights(num_new_inputs)
+        for new_item_num in range(len(new_items)):
+            new_item_ind = len(new_env.items) - (new_item_num + 1)
+            new_feature_inds = get_indices_new_features(new_env, new_item_ind)
+            # TODO - test, then write comment explaining
+            new_agent.expand_random_weights(new_feature_inds)
+
     else:  # Copy weights for existing features
         for new_item in new_items:
             # most_similar_old_item = get_most_similar_item(new_item, old_env.items)
@@ -157,6 +162,24 @@ def set_clever_exploration(new_agent, old_env, new_env, action_ranks,
 
     new_agent.set_clever_exploration(**clever_params)
     return new_agent
+
+
+def get_indices_new_features(new_env, new_item_ind):
+    """
+    Args:
+        old_env (NovelGridworldV_Env): An Open AI Gym NovelGridWorld Object 
+            (ex. NovelGridWorldV1Env)
+        new_env (int): Index of the new item in the environment's items list
+    """
+    item_lidar_ind = new_item_ind - 1
+    total_num_beams = len(new_env.items_lidar) * new_env.num_beams
+    new_feature_inds = [item_lidar_ind + len(new_env.items_lidar) * beam_i
+                        for beam_i in range(new_env.num_beams)]
+    new_feature_inds += [total_num_beams + new_item_ind]
+    new_feature_inds += [total_num_beams +
+                        len(new_env.inventory_items_quantity) + new_item_ind]
+
+    return new_feature_inds
 
 
 def get_optimal_actions(old_env, old_agent, similar_obj_ind,
@@ -238,3 +261,10 @@ def ranked_prob(num_actions, ranking, rank_factor=0.2):
 	
 	denom = num_actions * (num_actions + 1) / 2
 	return (ranking / denom * rank_factor) + base_prob
+
+if __name__ == "__main__":
+    import gym
+    from params_baseline import *
+    import gym_novel_gridworlds
+    newenv = gym.make(env_id_1, map_width=width, map_height=height, goal_env=type_of_env, is_final=final_status)
+    print(get_indices_new_features(newenv, 6))

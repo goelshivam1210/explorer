@@ -319,19 +319,26 @@ class RegularPolicyGradient(object):
 						math.exp(-self.rho_lambda* self.clever_episode)
 			self.clever_episode += 1
 
-	# upon addition of new items, called to expand network with given number of new
-	# input nodes, and connections to hidden layer initialized with random weights
-	def expand_random_weights(self, num_new_inputs=None):
-		# determine number of nodes to add
-		if num_new_inputs is None:
-			num_new_inputs = self._D - int(self._model['W1'].shape[0])
-		elif self._D != int(self._model['W1'].shape[0]) + num_new_inputs:
+	# upon addition of new items, called to expand network by inserting new input nodes
+	# at the specified locations (corresponding to the added features) with connections 
+	# to hidden layer initialized with random weights
+	def expand_random_weights(self, new_feature_inds):
+		num_new_features = len(new_feature_inds)
+		# confirm that number of new features corresponds to size of new input layer
+		if self._D != int(self._model['W1'].shape[0]) + num_new_features:
 			print("[expand_random_weights] Warning: num_new_inputs chosen such that"
 				  "model input layer size will not equal self._D after expansion")
 
-		if num_new_inputs != 0:
-			to_append = np.random.randn(num_new_inputs, self._H) / np.sqrt(self._D)
-			self._model['W1'] = np.vstack((self._model['W1'], to_append))
+		if num_new_features != 0:
+			to_append = np.random.randn(num_new_features, self._H) / np.sqrt(self._D)
+			# TODO - remove after debug
+			# print(self._model['W1'].shape)
+			# print("Indices: ", new_feature_inds)
+			for i, new_feature_ind in enumerate(new_feature_inds):
+				self._model['W1'] = np.insert(self._model['W1'], new_feature_ind,
+											to_append[i], axis=0)
+				# print(self._model['W1'].shape)
+
 
 	def expand_copy_weights(self, copy_node_indices, noise_SD=0.1):
 		for ind in copy_node_indices:
